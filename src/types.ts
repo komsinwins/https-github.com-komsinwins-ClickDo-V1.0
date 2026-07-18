@@ -102,3 +102,16 @@ export interface Project {
   reports: ReportLog[];
   documents: ProjectDocument[];
 }
+
+export interface Customer {
+  id: string;
+  companyName: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  address: string;
+  industry: string;
+  taxId?: string;
+  notes?: string;
+}
+

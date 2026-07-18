@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Project } from './types';
+import { Project, Customer } from './types';
 
 // Standard project contact positions
 export const DEFAULT_POSITIONS = [
@@ -249,3 +249,40 @@ export const INITIAL_PROJECTS: Project[] = [
     ],
   },
 ];
+
+export const INITIAL_CUSTOMERS: Customer[] = [
+  {
+    id: 'cust-amata',
+    companyName: 'บริษัท อมตะ ยูทิลิตี้ส์ จำกัด (มหาชน)',
+    contactPerson: 'กฤษณะ วรพจน์ (ผู้จัดการฝ่ายวิศวกรรม)',
+    phone: '081-234-5678',
+    email: 'krishna.w@amata-utility.com',
+    address: '700/77 หมู่ 1 นิคมอุตสาหกรรมอมตะนคร ถนนบางนา-ตราด กม.57 ต.คลองตำหรุ อ.เมือง จ.ชลบุรี 20000',
+    industry: 'พลังงานและสาธารณูปโภค',
+    taxId: '0107555000123',
+    notes: 'ลูกค้าโครงการติดตั้ง Solar Roof ขนาด 100kW (อาคาร B) ประสานงานดีเยี่ยม ชำระเงินตรงเวลา',
+  },
+  {
+    id: 'cust-cpall',
+    companyName: 'บริษัท ซีพี ออลล์ จำกัด (มหาชน)',
+    contactPerson: 'สมศักดิ์ มั่งคั่ง (ผู้อำนวยการจัดซื้อภายนอก)',
+    phone: '089-876-5432',
+    email: 'somsak.man@cpall.co.th',
+    address: '313 อาคาร ซี.พี.ทาวเวอร์ ชั้น 24 ถนนสีลม แขวงสีลม เขตบางรัก กรุงเทพมหานคร 10500',
+    industry: 'ค้าปลีก / บริการ',
+    taxId: '0107542000011',
+    notes: 'อยู่ระหว่างเสนอราคาโครงการติดตั้ง Solar Carport ลานจอดรถสำนักงานใหญ่',
+  },
+  {
+    id: 'cust-thaibev',
+    companyName: 'บริษัท ไทยเบฟเวอเรจ จำกัด (มหาชน)',
+    contactPerson: 'วิภา แก้วมณี (ผู้ประสานงานจัดซื้อส่วนเทคโนโลยีสิ่งแวดล้อม)',
+    phone: '085-555-1234',
+    email: 'wipa.k@thaibev.com',
+    address: '14 ถนนวิภาวดีรังสิต แขวงจอมพล เขตจตุจักร กรุงเทพมหานคร 10900',
+    industry: 'อาหารและเครื่องดื่ม',
+    taxId: '0107546000321',
+    notes: 'ลูกค้าเก่า สนใจทำโครงการประหยัดพลังงานไฟฟ้าระบบ Solar Rooftop โรงงานผลิตเฟสใหม่',
+  }
+];
+

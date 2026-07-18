@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Project, Contact, ContractorInfo, SOWItem, OrderItem, Diagram, ReportLog, ProjectDocument } from './types';
-import { INITIAL_PROJECTS, DEFAULT_POSITIONS, DEFAULT_SALESPEOPLE, DEFAULT_PROJECT_MANAGERS, DEFAULT_STATUSES } from './initialData';
+import { Project, Contact, ContractorInfo, SOWItem, OrderItem, Diagram, ReportLog, ProjectDocument, Customer } from './types';
+import { INITIAL_PROJECTS, DEFAULT_POSITIONS, DEFAULT_SALESPEOPLE, DEFAULT_PROJECT_MANAGERS, DEFAULT_STATUSES, INITIAL_CUSTOMERS } from './initialData';
 
 // Firebase Integrations
 import {
@@ -15,7 +15,11 @@ import {
   getFirebaseInstance,
   fetchProjectsFromFirebase,
   saveAllProjectsToFirebase,
-  FirebaseConfigDetails
+  FirebaseConfigDetails,
+  fetchCustomersFromFirebase,
+  saveCustomerToFirebase,
+  saveAllCustomersToFirebase,
+  deleteCustomerFromFirebase
 } from './firebase';
 
 // Subcomponents
@@ -29,6 +33,8 @@ import MaterialTracker from './components/MaterialTracker';
 import ReportsManager from './components/ReportsManager';
 import DocumentsManager from './components/DocumentsManager';
 import SOWCalendar from './components/SOWCalendar';
+import CustomersManager from './components/CustomersManager';
+
 
 import {
   FolderKanban,
@@ -54,11 +60,13 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
-  Settings2
+  Settings2,
+  Building2
 } from 'lucide-react';
 
 export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [positions, setPositions] = useState<string[]>(DEFAULT_POSITIONS);
   const [salesPeople, setSalesPeople] = useState<string[]>([]);
@@ -165,6 +173,25 @@ export default function App() {
         await saveAllProjectsToFirebase(parsed);
         setProjects(parsed);
       }
+
+      // Sync Customers!
+      try {
+        const dbCustomers = await fetchCustomersFromFirebase();
+        if (dbCustomers && dbCustomers.length > 0) {
+          setCustomers(dbCustomers);
+          localStorage.setItem('clickdo_customers', JSON.stringify(dbCustomers));
+        } else {
+          const localCustomersData = localStorage.getItem('clickdo_customers');
+          const parsedCust = localCustomersData ? JSON.parse(localCustomersData) : INITIAL_CUSTOMERS;
+          await saveAllCustomersToFirebase(parsedCust);
+          setCustomers(parsedCust);
+        }
+      } catch (custErr) {
+        console.warn('Could not sync customers collection from Firebase, using local instead:', custErr);
+        const localCustomersData = localStorage.getItem('clickdo_customers');
+        setCustomers(localCustomersData ? JSON.parse(localCustomersData) : INITIAL_CUSTOMERS);
+      }
+
       setFirebaseStatus('connected');
     } catch (err: any) {
       console.error('Firebase connection error:', err);
@@ -688,6 +715,8 @@ export default function App() {
             selectedProject={selectedProject}
             onSelectProject={handleSelectProject}
             onCreateProject={() => setView('create_project')}
+            onConfigureFirebase={() => setShowFirebaseModal(true)}
+            firebaseStatus={firebaseStatus}
           />
         )}
 
@@ -1131,8 +1160,8 @@ export default function App() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2">
-                <Database className="w-5 h-5 text-lime-400" />
-                <h3 className="text-lg font-bold text-white font-display">ตั้งค่าเชื่อมต่อฐานข้อมูล Firebase</h3>
+                <Database className="w-5 h-5 text-yellow-400" />
+                <h3 className="text-lg font-bold text-white font-display">เชื่อมต่อฐานข้อมูลภายนอก (Techlink V1.1)</h3>
               </div>
               <button 
                 type="button" 
@@ -1144,8 +1173,8 @@ export default function App() {
             </div>
 
             <div className="text-xs text-zinc-400 leading-relaxed bg-zinc-950 p-3 rounded-lg border border-zinc-850">
-              <p className="font-bold text-lime-400 mb-1">💡 การเชื่อมข้อมูลกับ Click DO:</p>
-              ซิงค์ข้อมูลโครงการ แผนงาน (SOW) ไดอะแกรมผู้ติดต่อ รายการวัสดุอุปกรณ์ และเอกสารทั้งหมดเข้ากับ Cloud Firestore ของคุณโดยตรง เพื่อการเข้าใช้งานแบบเรียลไทม์และการเก็บรักษาข้อมูลอย่างปลอดภัย
+              <p className="font-bold text-lime-400 mb-1">💡 การเชื่อมข้อมูลกับ Techlink V1.1 (Firebase):</p>
+              ระบุค่าการกำหนดคอนฟิก (Firebase Configuration Credentials) ของฐานข้อมูล Techlink V1.1 เพื่อเชื่อมโยงโครงการและซิงค์ข้อมูลทั้งหมดแบบเรียลไทม์และเก็บรักษาอย่างปลอดภัย
             </div>
 
             <form onSubmit={handleSaveFirebaseConfig} className="space-y-4 text-left">

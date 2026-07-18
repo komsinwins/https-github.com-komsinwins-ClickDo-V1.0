@@ -9,7 +9,7 @@ import {
   Firestore,
   writeBatch
 } from 'firebase/firestore';
-import { Project } from './types';
+import { Project, Customer } from './types';
 
 export interface FirebaseConfigDetails {
   apiKey: string;
@@ -44,12 +44,12 @@ export function getFirebaseConfig(): FirebaseConfigDetails | null {
 
   // Your web app's Firebase configuration
   const envConfig: FirebaseConfigDetails = {
-    apiKey: 'AIzaSyCOCq4VipzaxPdu9Fp3_hKzgxZlzqupSl8',
-    authDomain: 'click-do-9f5ad.firebaseapp.com',
-    projectId: 'click-do-9f5ad',
-    storageBucket: 'click-do-9f5ad.firebasestorage.app',
-    messagingSenderId: '955660995711',
-    appId: '1:955660995711:web:a2981fdfe8d6bba6f4034a',
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCOCq4VipzaxPdu9Fp3_hKzgxZlzqupSl8',
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'click-do-9f5ad.firebaseapp.com',
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'click-do-9f5ad',
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'click-do-9f5ad.firebasestorage.app',
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '955660995711',
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:955660995711:web:a2981fdfe8d6bba6f4034a',
   };
 
   return envConfig;
@@ -164,3 +164,76 @@ export async function deleteProjectFromFirebase(projectId: string): Promise<void
     throw error;
   }
 }
+
+/**
+ * Fetch all customers from Firestore.
+ */
+export async function fetchCustomersFromFirebase(): Promise<Customer[]> {
+  const instance = getFirebaseInstance();
+  if (!instance) {
+    throw new Error('Firebase is not configured or failed to initialize.');
+  }
+
+  try {
+    const querySnapshot = await getDocs(collection(instance.db, 'customers'));
+    const customersList: Customer[] = [];
+    querySnapshot.forEach((docSnap) => {
+      customersList.push(docSnap.data() as Customer);
+    });
+    return customersList;
+  } catch (error) {
+    console.error('Error fetching customers from Firebase:', error);
+    throw error;
+  }
+}
+
+/**
+ * Save a single customer to Firestore.
+ */
+export async function saveCustomerToFirebase(customer: Customer): Promise<void> {
+  const instance = getFirebaseInstance();
+  if (!instance) return;
+
+  try {
+    await setDoc(doc(instance.db, 'customers', customer.id), customer);
+  } catch (error) {
+    console.error(`Error saving customer ${customer.id} to Firebase:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Batch save multiple customers to Firestore.
+ */
+export async function saveAllCustomersToFirebase(customers: Customer[]): Promise<void> {
+  const instance = getFirebaseInstance();
+  if (!instance) return;
+
+  try {
+    const batch = writeBatch(instance.db);
+    customers.forEach((cust) => {
+      const docRef = doc(instance.db, 'customers', cust.id);
+      batch.set(docRef, cust);
+    });
+    await batch.commit();
+  } catch (error) {
+    console.error('Error batch saving customers to Firebase:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a customer from Firestore.
+ */
+export async function deleteCustomerFromFirebase(customerId: string): Promise<void> {
+  const instance = getFirebaseInstance();
+  if (!instance) return;
+
+  try {
+    await deleteDoc(doc(instance.db, 'customers', customerId));
+  } catch (error) {
+    console.error(`Error deleting customer ${customerId} from Firebase:`, error);
+    throw error;
+  }
+}
+

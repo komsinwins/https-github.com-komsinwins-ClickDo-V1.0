@@ -5,13 +5,15 @@
 
 import React from 'react';
 import { Project } from '../types';
-import { AlertTriangle, Calendar, MapPin, Plus, Briefcase, CheckCircle2, AlertCircle, FileText, TrendingUp, Sparkles, FolderOpen, LayoutGrid, List, TableProperties, Search, Filter } from 'lucide-react';
+import { AlertTriangle, Calendar, MapPin, Plus, Briefcase, CheckCircle2, AlertCircle, FileText, TrendingUp, Sparkles, FolderOpen, LayoutGrid, List, TableProperties, Search, Filter, Database, Settings } from 'lucide-react';
 
 interface DashboardOverviewProps {
   projects: Project[];
   selectedProject: Project | null;
   onSelectProject: (project: Project) => void;
   onCreateProject: () => void;
+  onConfigureFirebase?: () => void;
+  firebaseStatus?: 'disconnected' | 'connecting' | 'connected' | 'error';
 }
 
 export default function DashboardOverview({
@@ -19,6 +21,8 @@ export default function DashboardOverview({
   selectedProject,
   onSelectProject,
   onCreateProject,
+  onConfigureFirebase,
+  firebaseStatus,
 }: DashboardOverviewProps) {
   // Current time is Friday, July 10, 2026.
   const currentDate = new Date('2026-07-10');
@@ -328,6 +332,42 @@ export default function DashboardOverview({
           <span>พบ {filteredProjects.length} โครงการ</span>
         </div>
       </div>
+
+      {/* Techlink V1.1 Database Connection banner - Approach 3 */}
+      {onConfigureFirebase && (
+        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-yellow-500/10 text-yellow-400 rounded-lg">
+              <Database className="w-5 h-5 text-lime-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-sm font-bold text-white font-display">ระบบเชื่อมต่อฐานข้อมูลภายนอก (Techlink V1.1)</h4>
+                {firebaseStatus === 'connected' ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+                    <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                    เชื่อมต่อแล้ว
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-zinc-950 text-zinc-500 border border-zinc-850 px-2 py-0.5 rounded-full font-bold">
+                    Local Database (ออฟไลน์)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                ซิงค์ข้อมูลจัดระเบียบบริหารโครงการ แผนงาน ไดอะแกรม และเอกสารร่วมกับฐานข้อมูลกลาง Techlink V1.1 บนคลาวด์โดยตรง
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onConfigureFirebase}
+            className="w-full md:w-auto px-4 py-2 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow"
+          >
+            <Settings className="w-4 h-4 text-lime-400" />
+            <span>ตั้งค่าเชื่อมต่อ Techlink V1.1</span>
+          </button>
+        </div>
+      )}
 
       {/* Bento Grid: Project Summary by Customer & PM - Requirement 10 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
