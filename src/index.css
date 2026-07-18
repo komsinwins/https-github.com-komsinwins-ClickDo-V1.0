@@ -1,0 +1,323 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Sarabun", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", "Sarabun", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-brand-black: #0D0E12;
+  --color-brand-dark: #141722;
+  --color-brand-green: #10B981;
+  --color-brand-lime: #84CC16;
+  --color-brand-yellow: #F59E0B;
+  --color-brand-brightyellow: #FBBF24;
+}
+
+body {
+  background-color: #f8fafc; /* Beautiful soft slate gray */
+  color: #334155; /* Charcoal/slate text for high contrast */
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+/* Custom scrollbars for light mode */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Global Light Theme Overrides & Reset */
+div[class*="min-h-screen"], .min-h-screen {
+  background-color: #f8fafc !important;
+  color: #334155 !important;
+}
+
+/* 1. Sidebar Styles (Crisp & Professional) */
+aside {
+  background-color: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+  box-shadow: 1px 0 3px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+aside h1 {
+  color: #0f172a !important; /* Bold, deep dark text */
+}
+
+aside p {
+  color: #64748b !important; /* Muted but clear */
+}
+
+aside button {
+  color: #475569 !important; /* slate-600 */
+}
+
+aside button:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Active Menu State */
+aside button[class*="bg-zinc-900"], 
+aside button[class*="bg-zinc-800"] {
+  background-color: #f0fdf4 !important; /* Soft green tint */
+  color: #15803d !important; /* Deep green text */
+  font-weight: 700 !important;
+  border-left-width: 4px !important;
+  border-left-color: #22c55e !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important;
+}
+
+/* Mobile responsive navigation header */
+header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+header h1, header span {
+  color: #0f172a !important;
+}
+
+/* 2. Visual Hero Banner (Warm and professional solar-focused gradient instead of pitch black) */
+#dashboard-hero {
+  background: linear-gradient(135deg, #f7fee7 0%, #ecfdf5 50%, #fef9c3 100%) !important;
+  border-color: #d9f99d !important;
+  box-shadow: 0 10px 25px -5px rgba(132, 204, 22, 0.1) !important;
+}
+
+#dashboard-hero img {
+  opacity: 0.08 !important;
+  mix-blend-mode: multiply !important;
+}
+
+#dashboard-hero .absolute.inset-0 {
+  background: linear-gradient(to right, #f7fee7 30%, rgba(254, 249, 195, 0.15) 100%) !important;
+}
+
+#dashboard-hero h1 {
+  color: #14532d !important; /* Forest green - high readability */
+  font-weight: 800 !important;
+}
+
+#dashboard-hero p {
+  color: #15803d !important; /* Soft dark green */
+}
+
+#dashboard-hero .text-zinc-400 {
+  color: #166534 !important;
+}
+
+#dashboard-hero .bg-zinc-900\/90 {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  border-color: #bfd6f6 !important;
+  color: #1e293b !important;
+}
+
+#dashboard-hero button {
+  box-shadow: 0 4px 12px rgba(132, 204, 22, 0.3) !important;
+}
+
+/* 3. Cards & Sections */
+.bg-zinc-900:not(#dashboard-hero),
+.bg-zinc-850:not(#dashboard-hero),
+.bg-zinc-800:not(#dashboard-hero):not(.bg-gradient-to-r):not(aside button),
+.bg-zinc-750:not(#dashboard-hero):not(.bg-gradient-to-r) {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.01) !important;
+}
+
+.bg-zinc-950:not(#dashboard-hero):not(.bg-gradient-to-r):not(aside button) {
+  background-color: #f8fafc !important; /* Soft cool gray for inner zones */
+  border-color: #cbd5e1 !important;
+}
+
+/* Sub-panels and inner sections with opacity */
+.bg-zinc-950\/80, .bg-zinc-900\/90, .bg-zinc-850\/80, .bg-zinc-800\/80 {
+  background-color: #f1f5f9 !important; /* Soft cool slate-100 background */
+  border-color: #cbd5e1 !important;
+}
+
+.bg-zinc-950\/60, .bg-zinc-900\/60, .bg-zinc-850\/60, .bg-zinc-800\/60 {
+  background-color: #f8fafc !important; /* Muted cool gray slate-50 */
+  border-color: #e2e8f0 !important;
+}
+
+.bg-zinc-950\/40, .bg-zinc-900\/40, .bg-zinc-850\/40, .bg-zinc-800\/40, .bg-zinc-950\/20, .bg-zinc-900\/20, .bg-zinc-850\/20, .bg-zinc-800\/20, .bg-zinc-700\/20, .bg-zinc-700\/10 {
+  background-color: #f8fafc !important; /* Very light cool gray */
+  border-color: #cbd5e1 !important;
+}
+
+.bg-black {
+  background-color: #f8fafc !important;
+}
+
+.bg-black\/80, .bg-black\/60 {
+  background-color: rgba(241, 245, 249, 0.95) !important;
+}
+
+/* Border overrides to ensure subtle and clean light borders */
+.border-zinc-950, .border-zinc-900, .border-zinc-850, .border-zinc-800, .border-zinc-750, .border-zinc-700, .border-zinc-600, .border-zinc-800\/60, .border-zinc-850\/60, .border-zinc-850\/80 {
+  border-color: #cbd5e1 !important;
+}
+
+/* 4. Highly Legible Input Forms & Controls */
+input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important; /* slate-900 */
+  border: 1px solid #cbd5e1 !important; /* slate-300 */
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:focus {
+  border-color: #84cc16 !important;
+  box-shadow: 0 0 0 3px rgba(132, 204, 22, 0.15) !important;
+  outline: none !important;
+}
+
+/* 5. Typography Contrast Booster */
+h1, h2, h3, h4, h5, h6 {
+  color: #0f172a !important; /* Pitch black slate for massive contrast */
+  font-weight: 700 !important;
+}
+
+p, span, label, li, td, th {
+  font-weight: 500 !important; /* Bolster font weight for Thai Sarabun font */
+}
+
+/* Override dark theme generic white and light gray classes */
+.text-zinc-100, .text-zinc-200, .text-zinc-300, .text-white:not([class*="bg-"]):not(button):not(button *):not(#dashboard-hero *) {
+  color: #0f172a !important;
+}
+
+/* All generic button text becomes dark slate unless it is a primary button or has colored background */
+button:not([class*="bg-lime"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-red"]):not([class*="bg-gradient"]):not([class*="bg-blue"]) {
+  color: #0f172a !important;
+}
+
+button:not([class*="bg-lime"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-red"]):not([class*="bg-gradient"]):not([class*="bg-blue"]) * {
+  color: #0f172a !important;
+}
+
+.text-zinc-400, .text-zinc-500 {
+  color: #475569 !important; /* Slate-600 (highly legible gray) */
+}
+
+.text-zinc-600 {
+  color: #334155 !important; /* Slate-700 */
+}
+
+.text-zinc-700 {
+  color: #1e293b !important; /* Slate-800 */
+}
+
+/* Ensure placeholder texts are properly gray but legible */
+::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* 6. Styled Badges & Accent Overrides */
+/* Lime Accents */
+.bg-lime-500\/10 {
+  background-color: #f7fee7 !important;
+  color: #3f6212 !important; /* deep olive green */
+  border: 1px solid #d9f99d !important;
+}
+
+.text-lime-400 {
+  color: #4f7a04 !important; /* high-contrast dark lime */
+}
+
+/* Emerald Accents */
+.bg-emerald-500\/10, .bg-emerald-500\/15 {
+  background-color: #ecfdf5 !important;
+  color: #065f46 !important; /* deep green */
+  border: 1px solid #a7f3d0 !important;
+}
+
+.text-emerald-400 {
+  color: #047857 !important; /* emerald-700 */
+}
+
+/* Yellow / Warning Accents */
+.bg-yellow-500\/10, .bg-amber-500\/15 {
+  background-color: #fffbeb !important;
+  color: #92400e !important; /* deep amber-800 */
+  border: 1px solid #fde68a !important;
+}
+
+.text-yellow-400 {
+  color: #b45309 !important; /* amber-700 */
+}
+
+/* Red / Danger Accents */
+.bg-rose-500\/10, .bg-red-500\/10 {
+  background-color: #fff1f2 !important;
+  color: #9f1239 !important; /* dark rose-800 */
+  border: 1px solid #fecdd3 !important;
+}
+
+.text-rose-400, .text-rose-500, .text-red-400 {
+  color: #be123c !important; /* rose-700 */
+}
+
+/* Blue / Info Accents */
+.bg-sky-500\/10, .bg-blue-500\/10 {
+  background-color: #f0f9ff !important;
+  color: #075985 !important; /* dark sky-800 */
+  border: 1px solid #bae6fd !important;
+}
+
+.text-sky-400, .text-blue-400 {
+  color: #0369a1 !important; /* sky-700 */
+}
+
+/* 7. Hover Actions & Micro-interactions */
+.hover\:bg-zinc-800\/20:hover, .hover\:bg-zinc-950\/80:hover, .hover\:bg-zinc-900:hover, .hover\:bg-zinc-800:hover, .hover\:bg-zinc-700:hover, [class*="hover:bg-zinc"]:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.hover\:text-white:hover, .hover\:text-zinc-100:hover, .hover\:text-zinc-200:hover, .hover\:text-zinc-300:hover, .hover\:text-zinc-400:hover, [class*="hover:text-zinc"]:hover, [class*="hover:text-white"]:hover {
+  color: #0f172a !important;
+}
+
+/* Footer layout */
+footer {
+  background-color: #ffffff !important;
+  border-top: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+/* Drawing grid labels */
+.text-zinc-600 {
+  color: #475569 !important;
+}
+
+/* Printing styles for reports */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .print-card {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+  }
+}
