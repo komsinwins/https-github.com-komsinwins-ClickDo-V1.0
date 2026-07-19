@@ -61,7 +61,8 @@ import {
   Wifi,
   WifiOff,
   Settings2,
-  Building2
+  Building2,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function App() {
@@ -331,6 +332,8 @@ export default function App() {
       startDate: projectData.startDate || '',
       endDate: projectData.endDate || '',
       durationDays: projectData.durationDays || 0,
+      contractEndDate: projectData.contractEndDate || '',
+      closeDate: projectData.closeDate || '',
       ownerName: projectData.ownerName || '',
       partnerCompany: projectData.partnerCompany || '',
       salesPerson: projectData.salesPerson || '',
@@ -540,11 +543,10 @@ export default function App() {
     setWorkspaceTab('details');
   };
 
-  const completedSOWItemsCount = selectedProject
-    ? selectedProject.scopesOfWork.filter((s) => s.status === 'Completed').length
-    : 0;
   const totalSOWItemsCount = selectedProject ? selectedProject.scopesOfWork.length : 0;
-  const workspaceProgress = totalSOWItemsCount > 0 ? Math.round((completedSOWItemsCount / totalSOWItemsCount) * 100) : 0;
+  const workspaceProgress = totalSOWItemsCount > 0 
+    ? Math.round(selectedProject.scopesOfWork.reduce((acc, s) => acc + (s.progress || 0), 0) / totalSOWItemsCount) 
+    : 0;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row font-sans selection:bg-lime-500 selection:text-black">
@@ -793,6 +795,34 @@ export default function App() {
                     <MapPin className="w-3.5 h-3.5 text-zinc-500" />
                     <span>{selectedProject.installationSite}</span>
                   </p>
+
+                  {/* Expiry Alert banner */}
+                  {(() => {
+                    const contractDateStr = selectedProject.contractEndDate || selectedProject.endDate;
+                    if (!contractDateStr) return null;
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const target = new Date(contractDateStr);
+                    target.setHours(0, 0, 0, 0);
+                    const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    if (selectedProject.status === 'Active' && diffDays >= 0 && diffDays < 10) {
+                      return (
+                        <div className="mt-2.5 bg-amber-500/10 border border-amber-500/25 text-amber-400 rounded-lg px-3 py-2 text-xs font-semibold flex items-center gap-2 animate-pulse no-print">
+                          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                          <span>คำเตือน: สัญญากำลังจะสิ้นสุดในอีก <span className="font-extrabold underline text-white text-sm">{diffDays}</span> วัน! (สิ้นสุดสัญญา: {contractDateStr})</span>
+                        </div>
+                      );
+                    } else if (selectedProject.status === 'Active' && diffDays < 0) {
+                      return (
+                        <div className="mt-2.5 bg-rose-500/10 border border-rose-500/25 text-rose-400 rounded-lg px-3 py-2 text-xs font-semibold flex items-center gap-2 no-print">
+                          <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                          <span>คำเตือน: สัญญาเลยกำหนดสิ้นสุดมาแล้ว <span className="font-extrabold underline text-white text-sm">{Math.abs(diffDays)}</span> วัน! (สิ้นสุดสัญญา: {contractDateStr})</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <div className="flex flex-wrap gap-2.5 no-print">
@@ -818,14 +848,46 @@ export default function App() {
               {/* Workspace statistics mini bento */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-zinc-800/80">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">ระยะเวลาทั้งหมด</span>
-                  <span className="text-sm font-bold text-white font-mono">
-                    {selectedProject.startDate} ถึง {selectedProject.endDate} ({selectedProject.durationDays} วัน)
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">ระยะเวลาสัญญาโครงการ</span>
+                  <span className="text-xs font-bold text-white font-mono block">
+                    {selectedProject.startDate || '-'} ถึง {selectedProject.contractEndDate || selectedProject.endDate || '-'}
+                  </span>
+                  <span className="text-[10px] text-amber-400 font-mono">
+                    ({selectedProject.durationDays || 0} วัน)
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">ระยะเวลาดำเนินงานจริง</span>
+                  <span className="text-xs font-bold text-white font-mono block">
+                    {selectedProject.closeDate ? (
+                      (() => {
+                        const start = new Date(selectedProject.startDate);
+                        const end = new Date(selectedProject.closeDate);
+                        const diffTime = end.getTime() - start.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                        return `${selectedProject.startDate} ถึง ${selectedProject.closeDate}`;
+                      })()
+                    ) : (
+                      'กำลังดำเนินการ'
+                    )}
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-mono">
+                    {selectedProject.closeDate ? (
+                      (() => {
+                        const start = new Date(selectedProject.startDate);
+                        const end = new Date(selectedProject.closeDate);
+                        const diffTime = end.getTime() - start.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                        return `(${diffDays > 0 ? diffDays : 0} วัน)`;
+                      })()
+                    ) : (
+                      '(ยังไม่ระบุวันปิด)'
+                    )}
                   </span>
                 </div>
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">ความก้าวหน้าโครงการ</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mt-1">
                     <div className="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                       <div className="bg-lime-400 h-full rounded-full" style={{ width: `${workspaceProgress}%` }} />
                     </div>
@@ -833,15 +895,13 @@ export default function App() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">ลูกค้าฝั่งผู้จ้าง (Owner)</span>
-                  <span className="text-xs font-medium text-zinc-200 truncate block">
-                    {selectedProject.ownerName || '-'}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">บริษัทร่วมทุน / คู่ค้า</span>
-                  <span className="text-xs font-medium text-zinc-200 truncate block">
-                    {selectedProject.partnerCompany || 'ไม่มีระบุ'}
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">วันปิดโครงการ</span>
+                  <span className="text-xs font-bold text-zinc-200 truncate block">
+                    {selectedProject.closeDate ? (
+                      <span className="text-emerald-400 font-mono">{selectedProject.closeDate}</span>
+                    ) : (
+                      <span className="text-zinc-500">ยังไม่ปิดโครงการ</span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -912,19 +972,49 @@ export default function App() {
 
                     <div className="space-y-4">
                       <div>
-                        <span className="text-zinc-500 text-xs uppercase font-bold tracking-wider block">เจ้าของงาน / โครงการหลัก (Owners)</span>
+                        <span className="text-zinc-500 text-xs uppercase font-bold tracking-wider block">ชื่อบริษัทลูกค้า</span>
                         <p className="text-sm text-zinc-200 mt-1">{selectedProject.ownerName}</p>
                       </div>
 
                       <div>
-                        <span className="text-zinc-500 text-xs uppercase font-bold tracking-wider block">สัญญาจัดจ้างคู่ค้าพาร์ทเนอร์</span>
-                        <p className="text-sm text-zinc-200 mt-1">{selectedProject.partnerCompany || 'ไม่มีระบุพาร์ทเนอร์ภายนอก'}</p>
+                        <span className="text-zinc-500 text-xs uppercase font-bold tracking-wider block">ชื่อลูกค้า (Owners)</span>
+                        <p className="text-sm text-zinc-200 mt-1">{selectedProject.partnerCompany || 'ไม่มีระบุเจ้าของโครงการ'}</p>
                       </div>
 
-                      <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 text-xs font-mono">
-                        <span className="text-zinc-500 block">ช่วงระยะเวลาสัญญาจริง</span>
-                        <div className="text-lime-400 font-bold text-sm mt-1">
-                          {selectedProject.startDate} ถึง {selectedProject.endDate} ({selectedProject.durationDays} วัน)
+                      <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-850 space-y-3 text-xs font-mono">
+                        <div>
+                          <span className="text-zinc-500 block text-[10px] uppercase font-bold tracking-wider">วันเริ่มต้นโครงการ (Start Date)</span>
+                          <div className="text-zinc-200 font-bold text-xs mt-0.5">
+                            {selectedProject.startDate || '-'}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-zinc-500 block text-[10px] uppercase font-bold tracking-wider">วันสิ้นสุดสัญญา (Contract End Date)</span>
+                          <div className="text-amber-400 font-bold text-xs mt-0.5">
+                            {selectedProject.contractEndDate || selectedProject.endDate || '-'} 
+                            <span className="text-[10px] text-zinc-500 font-normal ml-1">
+                              (รวม {selectedProject.durationDays || 0} วัน)
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-zinc-500 block text-[10px] uppercase font-bold tracking-wider">วันปิดโครงการ (Project Close Date)</span>
+                          <div className="text-emerald-400 font-bold text-xs mt-0.5">
+                            {selectedProject.closeDate || 'ยังไม่ระบุวันปิดโครงการ'}
+                            {selectedProject.closeDate && (
+                              <span className="text-[10px] text-zinc-500 font-normal ml-1">
+                                (รวม {(() => {
+                                  const start = new Date(selectedProject.startDate);
+                                  const end = new Date(selectedProject.closeDate);
+                                  const diffTime = end.getTime() - start.getTime();
+                                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                                  return diffDays > 0 ? diffDays : 0;
+                                })()} วัน)
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

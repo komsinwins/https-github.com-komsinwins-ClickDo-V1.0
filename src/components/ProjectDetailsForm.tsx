@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Project } from '../types';
-import { Save, Calendar, MapPin, User, Building2, Tag, ShieldCheck, Clock, X, Plus, Trash2 } from 'lucide-react';
+import { Save, Calendar, MapPin, User, Building2, Tag, ShieldCheck, Clock, X, Plus, Trash2, AlertTriangle } from 'lucide-react';
 
 interface ProjectDetailsFormProps {
   project: Project | null; // Null means creating a new project
@@ -35,6 +35,8 @@ export default function ProjectDetailsForm({
   const [installationSite, setInstallationSite] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [contractEndDate, setContractEndDate] = useState('');
+  const [closeDate, setCloseDate] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [partnerCompany, setPartnerCompany] = useState('');
   const [salesPerson, setSalesPerson] = useState('');
@@ -50,6 +52,7 @@ export default function ProjectDetailsForm({
 
   // Calculate duration in days automatically based on start and end dates
   const [durationDays, setDurationDays] = useState(0);
+  const [executionDays, setExecutionDays] = useState(0);
 
   useEffect(() => {
     if (project) {
@@ -62,6 +65,8 @@ export default function ProjectDetailsForm({
       setInstallationSite(project.installationSite || '');
       setStartDate(project.startDate || '');
       setEndDate(project.endDate || '');
+      setContractEndDate(project.contractEndDate || project.endDate || '');
+      setCloseDate(project.closeDate || '');
       setOwnerName(project.ownerName || '');
       setPartnerCompany(project.partnerCompany || '');
       
@@ -81,8 +86,12 @@ export default function ProjectDetailsForm({
       setName('');
       setStatus('Active');
       setInstallationSite('');
-      setStartDate(new Date().toISOString().split('T')[0]);
-      setEndDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Default 2 weeks
+      const defaultStart = new Date().toISOString().split('T')[0];
+      const defaultEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      setStartDate(defaultStart);
+      setEndDate(defaultEnd);
+      setContractEndDate(defaultEnd); // default contractEndDate to defaultEnd (2 weeks)
+      setCloseDate(''); // closeDate empty by default until project is closed
       setOwnerName('');
       setPartnerCompany('');
       setSalesPerson('');
@@ -91,16 +100,28 @@ export default function ProjectDetailsForm({
   }, [project]);
 
   useEffect(() => {
-    if (startDate && endDate) {
+    if (startDate && contractEndDate) {
       const start = new Date(startDate);
-      const end = new Date(endDate);
+      const end = new Date(contractEndDate);
       const diffTime = end.getTime() - start.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
       setDurationDays(diffDays > 0 ? diffDays : 0);
     } else {
       setDurationDays(0);
     }
-  }, [startDate, endDate]);
+  }, [startDate, contractEndDate]);
+
+  useEffect(() => {
+    if (startDate && closeDate) {
+      const start = new Date(startDate);
+      const end = new Date(closeDate);
+      const diffTime = end.getTime() - start.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      setExecutionDays(diffDays > 0 ? diffDays : 0);
+    } else {
+      setExecutionDays(0);
+    }
+  }, [startDate, closeDate]);
 
   const handleAddSales = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,7 +213,9 @@ export default function ProjectDetailsForm({
       status,
       installationSite,
       startDate,
-      endDate,
+      endDate: contractEndDate || endDate, // keep endDate compatible
+      contractEndDate,
+      closeDate,
       durationDays,
       ownerName,
       partnerCompany,
@@ -220,8 +243,8 @@ export default function ProjectDetailsForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Project Name & Status */}
         <div className="space-y-4 md:col-span-2">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
               <label htmlFor="proj-name" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
                 ชื่อโครงการ *
               </label>
@@ -333,59 +356,139 @@ export default function ProjectDetailsForm({
         </div>
 
         {/* Dates */}
-        <div className="space-y-2">
-          <label htmlFor="proj-start-date" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-            วันเริ่มต้นโครงการ *
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
-              <Calendar className="w-4 h-4" />
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <label htmlFor="proj-start-date" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+              วันเริ่มต้นโครงการ *
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <input
+                id="proj-start-date"
+                type="date"
+                required
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-all text-sm font-semibold"
+              />
             </div>
-            <input
-              id="proj-start-date"
-              type="date"
-              required
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-all"
-            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="proj-contract-end-date" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+              วันสิ้นสุดสัญญา *
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
+                <Calendar className="w-4 h-4 text-amber-500" />
+              </div>
+              <input
+                id="proj-contract-end-date"
+                type="date"
+                required
+                value={contractEndDate}
+                onChange={(e) => setContractEndDate(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-all text-sm font-semibold"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="proj-close-date" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+              วันปิดโครงการ (ระบุเมื่อจบโครงการ)
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
+                <Calendar className="w-4 h-4 text-emerald-500" />
+              </div>
+              <input
+                id="proj-close-date"
+                type="date"
+                value={closeDate}
+                onChange={(e) => setCloseDate(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-all text-sm font-semibold"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="proj-end-date" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-            วันสิ้นสุดโครงการ *
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
-              <Calendar className="w-4 h-4" />
-            </div>
-            <input
-              id="proj-end-date"
-              type="date"
-              required
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-all"
-            />
-          </div>
-        </div>
+        {/* Dynamic Warning Alert for Expiring Contract */}
+        {(contractEndDate) && (() => {
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          const target = new Date(contractEndDate);
+          target.setHours(0,0,0,0);
+          const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (diffDays >= 0 && diffDays < 10) {
+            return (
+              <div className="md:col-span-2 bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3 text-amber-400 animate-pulse">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-amber-300">แจ้งเตือนสัญญาใกล้สิ้นสุด!</h4>
+                  <p className="text-xs font-medium mt-1">
+                    ระยะเวลาสิ้นสุดสัญญาคงเหลือน้อยกว่า 10 วัน (เหลืออีกเพียง <span className="font-mono font-extrabold text-sm text-white underline">{diffDays}</span> วัน) กรุณาเร่งติดตามความก้าวหน้าการติดตั้ง
+                  </p>
+                </div>
+              </div>
+            );
+          } else if (diffDays < 0) {
+            return (
+              <div className="md:col-span-2 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-start gap-3 text-rose-400">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-rose-300">สัญญาสิ้นสุดลงแล้ว! (OVERDUE)</h4>
+                  <p className="text-xs font-medium mt-1">
+                    เลยกำหนดเวลาสิ้นสุดสัญญามาแล้ว <span className="font-mono font-extrabold text-sm text-white underline">{Math.abs(diffDays)}</span> วัน กรุณาจัดทำแผนและแจ้งขยายสัญญากับทางลูกค้าโดยเร็ว
+                  </p>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
-        {/* Auto Duration display */}
-        <div className="md:col-span-2 bg-zinc-950 border border-zinc-800/80 rounded-lg p-3 flex items-center justify-between text-xs font-mono">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Clock className="w-4 h-4 text-lime-400" />
-            <span>คำนวณระยะเวลาก่อสร้าง/ติดตั้งอัตโนมัติ:</span>
+        {/* Auto Duration displays */}
+        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Clock className="w-4 h-4 text-amber-400" />
+              <div>
+                <span className="font-bold text-zinc-300 block">ระยะเวลาโครงการ</span>
+                <span className="text-[10px] text-zinc-500">คำนวณจาก วันเริ่มต้น ถึง วันสิ้นสุดสัญญา</span>
+              </div>
+            </div>
+            <span className="text-amber-400 font-extrabold text-sm">
+              {durationDays} วัน
+            </span>
           </div>
-          <span className="text-lime-400 font-bold text-sm">
-            {durationDays} วัน
-          </span>
+
+          <div className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-4 flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Clock className="w-4 h-4 text-emerald-400" />
+              <div>
+                <span className="font-bold text-zinc-300 block">ระยะเวลาดำเนินงานจริง</span>
+                <span className="text-[10px] text-zinc-500">คำนวณจาก วันเริ่มต้น ถึง วันปิดโครงการ</span>
+              </div>
+            </div>
+            {closeDate ? (
+              <span className="text-emerald-400 font-extrabold text-sm">
+                {executionDays} วัน
+              </span>
+            ) : (
+              <span className="text-zinc-500 font-bold text-xs">
+                อยู่ระหว่างดำเนินงาน
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Client Owner Name */}
         <div>
           <label htmlFor="proj-owner" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-            ชื่อลูกค้า (Owners) *
+            ชื่อบริษัทลูกค้า *
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
@@ -395,7 +498,7 @@ export default function ProjectDetailsForm({
               id="proj-owner"
               type="text"
               required
-              placeholder="ระบุชื่อบุคคล หรือ บริษัทลูกค้า"
+              placeholder="ระบุชื่อบริษัทลูกค้าหลัก"
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
               className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-all"
@@ -406,7 +509,7 @@ export default function ProjectDetailsForm({
         {/* Partner Company */}
         <div>
           <label htmlFor="proj-partner" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-            ชื่อบริษัทคู่ค้า (ถ้ามี)
+            ชื่อลูกค้า (Owners) *
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
@@ -415,7 +518,8 @@ export default function ProjectDetailsForm({
             <input
               id="proj-partner"
               type="text"
-              placeholder="เช่น บริษัทร่วมทุน, ซัพพลายเออร์หลัก"
+              required
+              placeholder="ระบุชื่อบุคคลที่เป็นเจ้าของหรือผู้ติดต่อหลัก"
               value={partnerCompany}
               onChange={(e) => setPartnerCompany(e.target.value)}
               className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-all"

@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { Project } from '../types';
-import { AlertTriangle, Calendar, MapPin, Plus, Briefcase, CheckCircle2, AlertCircle, FileText, TrendingUp, Sparkles, FolderOpen, LayoutGrid, List, TableProperties, Search, Filter, Database, Settings } from 'lucide-react';
+import { AlertTriangle, Calendar, MapPin, Plus, Briefcase, CheckCircle2, AlertCircle, FileText, TrendingUp, Sparkles, FolderOpen, LayoutGrid, List, TableProperties, Search, Filter, Database, Settings, BarChart3, PieChart } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, LineChart, Line } from 'recharts';
 
 interface DashboardOverviewProps {
   projects: Project[];
@@ -134,6 +135,179 @@ export default function DashboardOverview({
       return matchStatus && matchQuery;
     });
   }, [projects, searchQuery, statusFilter]);
+
+  // Chart Data preparation
+  const [chartType, setChartType] = React.useState<'pm' | 'client' | 'overall'>('pm');
+
+  const pmChartData = React.useMemo(() => {
+    return pmSummary.map(pm => ({
+      name: pm.name,
+      'กำลังดำเนินการ (Active)': pm.active,
+      'ปิดโครงการแล้ว (Closed)': pm.closed,
+    }));
+  }, [pmSummary]);
+
+  const clientChartData = React.useMemo(() => {
+    return clientSummary.map(client => ({
+      name: client.name,
+      'กำลังดำเนินการ (Active)': client.active,
+      'ปิดโครงการแล้ว (Closed)': client.closed,
+    }));
+  }, [clientSummary]);
+
+  const overallChartData = React.useMemo(() => {
+    const activeCount = projects.filter(p => p.status === 'Active').length;
+    const closedCount = projects.filter(p => p.status === 'Closed').length;
+    const onHoldCount = projects.filter(p => p.status === 'On Hold').length;
+    return [
+      { name: 'กำลังติดตั้ง (Active)', 'จำนวนโครงการ': activeCount, fill: '#84cc16' },
+      { name: 'ปิดโครงการแล้ว (Closed)', 'จำนวนโครงการ': closedCount, fill: '#EAB308' },
+      { name: 'ระงับชั่วคราว (On Hold)', 'จำนวนโครงการ': onHoldCount, fill: '#71717a' },
+    ];
+  }, [projects]);
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-zinc-950 border border-zinc-850 p-3 rounded-lg shadow-xl font-sans text-xs">
+          <p className="font-extrabold text-white mb-1.5">{label}</p>
+          {payload.map((item: any, index: number) => (
+            <div key={index} className="flex items-center gap-2 mt-1">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color || item.payload.fill }} />
+              <span className="text-zinc-400 font-medium">{item.name}:</span>
+              <span className="text-white font-mono font-bold">{item.value} โครงการ</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Active Projects List for progress line rendering
+  const activeProjectsList = React.useMemo(() => {
+    return projects.filter(p => p.status === 'Active');
+  }, [projects]);
+
+  // Dynamic progress timeline data calculation for active projects
+  const progressTimelineData = React.useMemo(() => {
+    const activeProjs = projects.filter(p => p.status === 'Active');
+    if (activeProjs.length === 0) return [];
+
+    // Find min and max dates of all active projects
+    let minTime = Infinity;
+    let maxTime = -Infinity;
+
+    activeProjs.forEach((p) => {
+      const start = p.startDate ? new Date(p.startDate).getTime() : NaN;
+      const end = p.endDate ? new Date(p.endDate).getTime() : NaN;
+
+      if (!isNaN(start) && start < minTime) minTime = start;
+      if (!isNaN(end) && end > maxTime) maxTime = end;
+    });
+
+    // Fallbacks if dates are invalid
+    if (minTime === Infinity || maxTime === -Infinity || minTime >= maxTime) {
+      const today = new Date().getTime();
+      minTime = today - 30 * 24 * 60 * 60 * 1000; // 30 days ago
+      maxTime = today;
+    }
+
+    // Helper to calculate progress of a project on a specific timestamp
+    const getProjectProgressAtTime = (proj: Project, timestamp: number) => {
+      const sowItems = proj.scopesOfWork || [];
+      if (sowItems.length === 0) return 0;
+
+      let totalProgress = 0;
+      sowItems.forEach((sow) => {
+        const start = sow.startDate ? new Date(sow.startDate).getTime() : NaN;
+        const end = sow.endDate ? new Date(sow.endDate).getTime() : NaN;
+        const currentProgress = sow.progress || 0;
+
+        if (isNaN(start) || isNaN(end)) {
+          totalProgress += currentProgress;
+          return;
+        }
+
+        if (timestamp < start) {
+          totalProgress += 0;
+        } else if (timestamp >= end) {
+          totalProgress += currentProgress;
+        } else {
+          const duration = end - start;
+          if (duration > 0) {
+            const elapsed = timestamp - start;
+            const fraction = elapsed / duration;
+            totalProgress += Math.min(currentProgress, Math.round(fraction * currentProgress));
+          } else {
+            totalProgress += currentProgress;
+          }
+        }
+      });
+
+      return Math.round(totalProgress / sowItems.length);
+    };
+
+    // Generate 10 data points
+    const pointsCount = 10;
+    const interval = (maxTime - minTime) / (pointsCount - 1);
+    const result = [];
+
+    for (let i = 0; i < pointsCount; i++) {
+      const t = minTime + interval * i;
+      const d = new Date(t);
+      const label = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+
+      const pointData: any = {
+        dateLabel: label,
+        rawTime: t,
+      };
+
+      let activeCount = 0;
+      let progressSum = 0;
+
+      activeProjs.forEach((p) => {
+        const prog = getProjectProgressAtTime(p, t);
+        pointData[p.name] = prog;
+        progressSum += prog;
+        activeCount++;
+      });
+
+      // Cumulative (average) percentage completion of all active projects at this timestamp
+      pointData['ความคืบหน้าภาพรวม (Cumulative)'] = activeCount > 0 
+        ? Math.round(progressSum / activeCount) 
+        : 0;
+
+      result.push(pointData);
+    }
+
+    return result;
+  }, [projects]);
+
+  const CustomLineTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-zinc-950 border border-zinc-850 p-3 rounded-xl shadow-2xl font-sans text-xs space-y-1.5">
+          <p className="font-extrabold text-white text-xs border-b border-zinc-800 pb-1">{label}</p>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {payload.map((item: any, index: number) => {
+              const isCumulative = item.name === 'ความคืบหน้าภาพรวม (Cumulative)';
+              return (
+                <div key={index} className={`flex items-center justify-between gap-5 ${isCumulative ? 'font-bold text-lime-400 mt-1 border-t border-zinc-800 pt-1' : 'text-zinc-400'}`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="truncate max-w-[140px] text-[11px]">{item.name}</span>
+                  </div>
+                  <span className="font-mono font-bold text-[11px]">{item.value}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -314,7 +488,7 @@ export default function DashboardOverview({
       </div>
 
       {/* Prominent Dashboard Search Bar */}
-      <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col md:flex-row items-center gap-4 shadow-lg">
+      <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col md:flex-row items-center gap-4 shadow-lg no-print">
         <div className="flex-1 w-full relative">
           <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-lime-400">
             <Search className="w-5 h-5" />
@@ -326,6 +500,67 @@ export default function DashboardOverview({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-11 pr-4 py-3 text-sm font-semibold rounded-xl border border-zinc-700 bg-zinc-950 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition-all font-sans"
           />
+
+          {/* Quick Search Floating Dropdown */}
+          {searchQuery && (
+            <div className="absolute left-0 right-0 top-full mt-2 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-40 max-h-80 overflow-y-auto divide-y divide-zinc-900/80">
+              <div className="p-2.5 bg-zinc-900/50 text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center justify-between">
+                <span>ผลการค้นหาด่วน (คลิกเพื่อเข้าสู่หน้าโครงการ)</span>
+                <span className="text-lime-400 font-mono">พบ {filteredProjects.length} โครงการ</span>
+              </div>
+              {filteredProjects.length === 0 ? (
+                <div className="p-6 text-center text-zinc-500 text-xs italic">
+                  ไม่พบโครงการตามคำค้นหาของคุณ (ลองค้นหาด้วยคำอื่น)
+                </div>
+              ) : (
+                filteredProjects.map((p) => {
+                  const completedSow = p.scopesOfWork?.filter((s) => s.status === 'Completed').length || 0;
+                  const totalSow = p.scopesOfWork?.length || 0;
+                  const progressPct = totalSow > 0 ? Math.round((completedSow / totalSow) * 100) : 0;
+                  
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => onSelectProject(p)}
+                      className="w-full text-left p-3.5 hover:bg-zinc-900/80 transition-all flex items-center justify-between gap-4 group"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-xs text-white group-hover:text-lime-400 transition-colors truncate">
+                            {p.name}
+                          </span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase shrink-0 ${
+                            p.status === 'Active' ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' :
+                            p.status === 'Closed' ? 'bg-zinc-800 text-zinc-400 border border-zinc-700' :
+                            'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                          }`}>
+                            {p.status === 'Active' ? 'กำลังติดตั้ง' : p.status === 'Closed' ? 'ปิดแล้ว' : 'ระงับชั่วคราว'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] text-zinc-450">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <MapPin className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                            <span className="truncate">{p.installationSite || 'ไม่ระบุสถานที่'}</span>
+                          </span>
+                          <span className="text-zinc-700 font-normal shrink-0">|</span>
+                          <span className="text-zinc-400 shrink-0">PM: {p.projectManager || 'ไม่ระบุ'}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Progress bar on the right */}
+                      <div className="flex flex-col items-end gap-1 shrink-0 w-24">
+                        <span className="text-[10px] font-mono font-bold text-lime-400">{progressPct}%</span>
+                        <div className="w-full bg-zinc-900 h-1 rounded-full overflow-hidden">
+                          <div className="bg-lime-500 h-full rounded-full" style={{ width: `${progressPct}%` }} />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold shrink-0">
           <Filter className="w-4 h-4 text-lime-400" />
@@ -368,6 +603,222 @@ export default function DashboardOverview({
           </button>
         </div>
       )}
+
+      {/* Analytics & Performance Charts Area */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Project Status & Performance Analytics Recharts BarChart */}
+        <div id="project-analytics-card" className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-lime-400" />
+              <div>
+                <h3 className="font-bold text-white text-sm md:text-base font-display">แผงวิเคราะห์และสรุปสถานะโครงการทั้งหมด (Project Status & Performance Analytics)</h3>
+                <p className="text-[11px] text-zinc-400 mt-0.5">แผนภูมิวิเคราะห์สัดส่วนการปิดโครงการเทียบกับโครงการกำลังดำเนินการ</p>
+              </div>
+            </div>
+
+            {/* Tab buttons to filter/switch chart content */}
+            <div className="flex bg-zinc-950 p-1 rounded-lg border border-zinc-800 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setChartType('pm')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  chartType === 'pm'
+                    ? 'bg-zinc-800 text-lime-400 shadow'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                ราย PM ผู้รับผิดชอบ
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartType('client')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  chartType === 'client'
+                    ? 'bg-zinc-800 text-lime-400 shadow'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                รายชื่อผู้ว่าจ้าง/ลูกค้า
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartType('overall')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  chartType === 'overall'
+                    ? 'bg-zinc-800 text-lime-400 shadow'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                สัดส่วนภาพรวมโครงการ
+              </button>
+            </div>
+          </div>
+
+          {/* Chart Rendering Stage */}
+          <div className="w-full bg-zinc-950/40 p-4 rounded-xl border border-zinc-850">
+            <div className="h-80 w-full">
+              {chartType === 'overall' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={overallChartData}
+                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                    <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                    <Legend 
+                      verticalAlign="top" 
+                      height={36} 
+                      content={({ payload }) => (
+                        <div className="flex justify-center gap-4 text-xs font-bold text-zinc-400">
+                          {payload?.map((entry: any, index: number) => (
+                            <div key={index} className="flex items-center gap-1.5">
+                              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.payload.fill }} />
+                              <span>{entry.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                    <Bar dataKey="จำนวนโครงการ" radius={[6, 6, 0, 0]}>
+                      {overallChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartType === 'pm' ? pmChartData : clientChartData}
+                    margin={{ top: 20, right: 30, left: -10, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                    <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                    <Legend 
+                      verticalAlign="top" 
+                      height={36} 
+                      content={() => (
+                        <div className="flex justify-center gap-5 text-xs font-bold text-zinc-400">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded bg-lime-500" />
+                            <span>กำลังดำเนินการ (Active)</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded bg-yellow-500" />
+                            <span>ปิดโครงการแล้ว (Closed)</span>
+                          </div>
+                        </div>
+                      )}
+                    />
+                    <Bar dataKey="กำลังดำเนินการ (Active)" fill="#84cc16" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="ปิดโครงการแล้ว (Closed)" fill="#EAB308" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          {/* Explanatory text matching high craftsmanship */}
+          <div className="flex items-center gap-2 text-[11px] text-zinc-500 italic pl-1">
+            <span>* ข้อมูลแผนภูมิสรุปยอดสะสมจะอัปเดตทันทีเมื่อสถานะโครงการของท่านได้รับการเปลี่ยนแปลง</span>
+          </div>
+        </div>
+
+        {/* Active Projects Cumulative Progress Line Chart */}
+        <div id="active-projects-progress-card" className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-lime-400" />
+              <div>
+                <h3 className="font-bold text-white text-sm md:text-base font-display">แนวโน้มความคืบหน้าสะสมโครงการกำลังดำเนินการ (Active Projects Progress Tracker)</h3>
+                <p className="text-[11px] text-zinc-400 mt-0.5">แผนภูมิเส้นความคืบหน้าสะสมเฉลี่ย (Cumulative) เทียบกับโครงการรายตัวบนเส้นเวลา</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full bg-zinc-950/40 p-4 rounded-xl border border-zinc-850">
+            {progressTimelineData.length === 0 ? (
+              <div className="h-80 flex flex-col items-center justify-center text-center space-y-2">
+                <p className="text-zinc-500 text-sm italic">ไม่มีโครงการที่อยู่ในสถานะ "กำลังดำเนินการ" ในขณะนี้</p>
+                <p className="text-zinc-600 text-xs">หากต้องการดูข้อมูล กรุณาเปลี่ยนสถานะของบางโครงการเป็นกำลังดำเนินการ (Active)</p>
+              </div>
+            ) : (
+              <div className="h-80 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={progressTimelineData}
+                    margin={{ top: 20, right: 30, left: -10, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                    <XAxis dataKey="dateLabel" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} domain={[0, 100]} unit="%" />
+                    <Tooltip content={<CustomLineTooltip />} />
+                    <Legend
+                      verticalAlign="top"
+                      height={36}
+                      content={() => (
+                        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[10px] font-bold text-zinc-400 max-h-16 overflow-y-auto">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-3 h-0.5 bg-lime-400 inline-block" />
+                            <span className="text-lime-400">ภาพรวมสะสม (Cumulative)</span>
+                          </div>
+                          {activeProjectsList.map((p, index) => {
+                            const colors = ['#38bdf8', '#fb7185', '#a855f7', '#fb923c', '#4ade80', '#e879f9'];
+                            const color = colors[index % colors.length];
+                            return (
+                              <div key={p.id} className="flex items-center gap-1.5">
+                                <span className="w-3 h-0.5 inline-block border-t border-dashed" style={{ borderColor: color }} />
+                                <span className="truncate max-w-[100px] text-zinc-400">{p.name}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    />
+                    
+                    {/* Render active projects individual lines */}
+                    {activeProjectsList.map((p, index) => {
+                      const colors = ['#38bdf8', '#fb7185', '#a855f7', '#fb923c', '#4ade80', '#e879f9'];
+                      const color = colors[index % colors.length];
+                      return (
+                        <Line
+                          key={p.id}
+                          type="monotone"
+                          dataKey={p.name}
+                          stroke={color}
+                          strokeWidth={1.5}
+                          strokeDasharray="4 4"
+                          dot={{ r: 2 }}
+                          activeDot={{ r: 4 }}
+                        />
+                      );
+                    })}
+
+                    {/* Bold cumulative line */}
+                    <Line
+                      type="monotone"
+                      dataKey="ความคืบหน้าภาพรวม (Cumulative)"
+                      stroke="#84cc16"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: '#84cc16' }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 text-[11px] text-zinc-500 italic pl-1">
+            <span>* คำนวณความคืบหน้าจากสัดส่วนช่วงเวลาและร้อยละความสำเร็จของหัวข้องานย่อย (SOW) ทั้งหมดสะสม</span>
+          </div>
+        </div>
+      </div>
 
       {/* Bento Grid: Project Summary by Customer & PM - Requirement 10 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

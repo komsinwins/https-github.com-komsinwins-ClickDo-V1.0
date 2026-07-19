@@ -1,6 +1,6 @@
 {
   "name": "ClickDo V1.0",
   "description": "ระบบจัดระเบียบบริหารโครงการและควบคุมงานติดตั้งมาตรฐานระดับมืออาชีพ 'Click to Plan, Do to Win'",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

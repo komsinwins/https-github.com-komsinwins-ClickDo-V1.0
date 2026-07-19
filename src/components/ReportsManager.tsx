@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Project, ReportLog } from '../types';
-import { FileText, Plus, Trash2, Calendar, Camera, Download, Printer, Check, Clock, User } from 'lucide-react';
+import { FileText, Plus, Trash2, Calendar, Camera, Download, Printer, Check, Clock, User, AlertCircle } from 'lucide-react';
 
 interface ReportsManagerProps {
   project: Project;
@@ -24,6 +24,90 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
   const [details, setDetails] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [reporter, setReporter] = useState(project.projectManager || '');
+  const [issues, setIssues] = useState('');
+  const [solutions, setSolutions] = useState('');
+  const [nextSteps, setNextSteps] = useState('');
+
+  // Camera state
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const startCamera = async () => {
+    setCameraError(null);
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      setCameraStream(stream);
+    } catch (err: any) {
+      console.error('Error accessing camera:', err);
+      setCameraError('ไม่สามารถเข้าถึงกล้องถ่ายภาพได้ กรุณาตรวจสอบสิทธิ์การใช้งานกล้องในเบราว์เซอร์ของคุณ');
+      setIsCameraOpen(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setIsCameraOpen(false);
+    setCameraError(null);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        try {
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setPhotos((prev) => [...prev, dataUrl]);
+          
+          // Flash effect
+          const flash = document.getElementById('camera-flash');
+          if (flash) {
+            flash.classList.remove('opacity-0');
+            flash.classList.add('opacity-100');
+            setTimeout(() => {
+              flash.classList.remove('opacity-100');
+              flash.classList.add('opacity-0');
+            }, 150);
+          }
+        } catch (e) {
+          console.error('Failed to capture photo', e);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraStream, isCameraOpen]);
+
+  useEffect(() => {
+    if (!isAdding) {
+      stopCamera();
+    }
+  }, [isAdding]);
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
 
   // Mock standard photos for easy demonstration
   const MOCK_PHOTOS = [
@@ -38,8 +122,12 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
     setWeekRange('');
     setTitle('');
     setDetails('');
+    setIssues('');
+    setSolutions('');
+    setNextSteps('');
     setPhotos([]);
     setReporter(project.projectManager || '');
+    stopCamera();
   };
 
   const handleOpenAdd = () => {
@@ -82,6 +170,9 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
       weekRange: type === 'Weekly' ? weekRange : undefined,
       title: title.trim(),
       details: details.trim(),
+      issues: issues.trim(),
+      solutions: solutions.trim(),
+      nextSteps: nextSteps.trim(),
       photos,
       reporter: reporter.trim(),
     };
@@ -145,8 +236,25 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
           </div>
 
           <div style="margin-bottom: 25px;">
-            <h3 style="margin-top:0; color:#111;">หัวข้อ: ${report.title}</h3>
-            <div class="details-box">${report.details}</div>
+            <h3 style="margin-top:0; color:#111; margin-bottom: 15px;">หัวข้อ: ${report.title}</h3>
+            
+            <h4 style="margin-top: 15px; margin-bottom: 5px; color: #111;">รายละเอียดการทำงาน</h4>
+            <div class="details-box" style="margin-bottom: 20px;">${report.details}</div>
+
+            ${report.issues ? `
+              <h4 style="margin-top: 15px; margin-bottom: 5px; color: #c2410c;">ปัญหาและอุปสรรค</h4>
+              <div class="details-box" style="border-color: #fed7aa; background-color: #fff7ed; color: #9a3412; margin-bottom: 20px;">${report.issues}</div>
+            ` : ''}
+
+            ${report.solutions ? `
+              <h4 style="margin-top: 15px; margin-bottom: 5px; color: #047857;">แนวทางการแก้ไข</h4>
+              <div class="details-box" style="border-color: #a7f3d0; background-color: #f0fdf4; color: #065f46; margin-bottom: 20px;">${report.solutions}</div>
+            ` : ''}
+
+            ${report.nextSteps ? `
+              <h4 style="margin-top: 15px; margin-bottom: 5px; color: #0369a1;">งานที่จะทำต่อ</h4>
+              <div class="details-box" style="border-color: #bae6fd; background-color: #f0f9ff; color: #075985; margin-bottom: 20px;">${report.nextSteps}</div>
+            ` : ''}
           </div>
 
           <div>
@@ -361,15 +469,54 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
 
                 <div className="sm:col-span-2">
                   <label htmlFor="rep-details" className="block text-xs font-semibold text-zinc-400 mb-1">
-                    รายละเอียดการทำงานและเหตุการณ์สำคัญ *
+                    รายละเอียดการทำงาน *
                   </label>
                   <textarea
                     id="rep-details"
                     required
-                    placeholder="รายละเอียดงาน ช่างที่เข้าร่วม วัสดุที่แกะกล่องอัพเดท อุปสรรคหน้างาน และมาตรการแก้ไข"
+                    placeholder="ระบุรายละเอียดขั้นตอนงานที่ปฏิบัติ ช่างที่เข้าร่วม หรือผลความก้าวหน้า"
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500 h-28"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500 h-24"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="rep-issues" className="block text-xs font-semibold text-zinc-400 mb-1">
+                    ปัญหาและอุปสรรค
+                  </label>
+                  <textarea
+                    id="rep-issues"
+                    placeholder="ระบุปัญหาอุปสรรคหน้างาน สภาพอากาศ หรืออุปกรณ์ติดขัด (หากมี)"
+                    value={issues}
+                    onChange={(e) => setIssues(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500 h-20"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="rep-solutions" className="block text-xs font-semibold text-zinc-400 mb-1">
+                    แนวทางการแก้ไข
+                  </label>
+                  <textarea
+                    id="rep-solutions"
+                    placeholder="ระบุวิธีแก้ไขปัญหาหน้างาน การปรับแผน หรือการประสานงานช่วยเหลือ (หากมี)"
+                    value={solutions}
+                    onChange={(e) => setSolutions(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500 h-20"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="rep-next-steps" className="block text-xs font-semibold text-zinc-400 mb-1">
+                    งานที่จะทำต่อ
+                  </label>
+                  <textarea
+                    id="rep-next-steps"
+                    placeholder="ระบุเป้าหมายงาน หรือสิ่งที่ต้องติดตั้งต่อในวันถัดไป"
+                    value={nextSteps}
+                    onChange={(e) => setNextSteps(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500 h-20"
                   />
                 </div>
 
@@ -397,6 +544,20 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
                       />
                     </label>
 
+                    {/* Camera Capture toggle button */}
+                    <button
+                      type="button"
+                      onClick={isCameraOpen ? stopCamera : startCamera}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-all ${
+                        isCameraOpen
+                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30'
+                          : 'bg-zinc-900 hover:bg-zinc-850 text-lime-400 border border-zinc-800'
+                      }`}
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>{isCameraOpen ? 'ปิดกล้อง' : 'ถ่ายภาพด้วยกล้องจริง'}</span>
+                    </button>
+
                     {/* Quick selection mock photos for demo */}
                     <span className="text-[10px] text-zinc-600 font-mono">หรือจิ้มรูปตัวอย่าง:</span>
                     {MOCK_PHOTOS.map((p) => (
@@ -410,6 +571,61 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
                       </button>
                     ))}
                   </div>
+
+                  {/* Camera access/permission error notification */}
+                  {cameraError && (
+                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-[11px] text-rose-400 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{cameraError}</span>
+                    </div>
+                  )}
+
+                  {/* Live Camera Interface */}
+                  {isCameraOpen && (
+                    <div className="relative border border-zinc-800 rounded-xl bg-zinc-950 overflow-hidden flex flex-col items-center p-3 space-y-3">
+                      <div className="relative w-full max-w-md aspect-[4/3] bg-black rounded-lg overflow-hidden border border-zinc-850 shadow-inner">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-full object-cover scale-x-[-1] sm:scale-x-[1]"
+                        />
+                        
+                        {/* Shutter Flash feedback screen */}
+                        <div
+                          id="camera-flash"
+                          className="absolute inset-0 bg-white opacity-0 pointer-events-none transition-opacity duration-150 z-20"
+                        />
+
+                        {/* Top corner camera active badge */}
+                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-rose-500 text-white font-mono text-[9px] font-bold rounded-md animate-pulse flex items-center gap-1 z-10">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                          <span>LIVE CAMERA</span>
+                        </div>
+                      </div>
+
+                      {/* Camera control buttons */}
+                      <div className="flex items-center gap-3 w-full justify-center">
+                        <button
+                          type="button"
+                          onClick={capturePhoto}
+                          className="px-5 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-black font-extrabold text-xs rounded-lg flex items-center gap-2 shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>กดชัตเตอร์เพื่อถ่ายภาพ</span>
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={stopCamera}
+                          className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 font-semibold text-xs rounded-lg border border-zinc-800 transition-all"
+                        >
+                          ปิดกล้อง
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Uploaded photos preview list */}
                   {photos.length > 0 && (
@@ -506,8 +722,40 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
               </div>
 
               {/* details block */}
-              <div className="text-sm text-zinc-300 whitespace-pre-line leading-relaxed bg-zinc-950/40 p-4 rounded-lg border border-zinc-850/80">
-                {selectedReport.details}
+              <div className="space-y-4">
+                <div>
+                  <span className="text-[11px] uppercase font-bold tracking-wider text-zinc-400 block mb-1">รายละเอียดการทำงาน</span>
+                  <div className="text-sm text-zinc-300 whitespace-pre-line leading-relaxed bg-zinc-950/40 p-4 rounded-lg border border-zinc-850/80">
+                    {selectedReport.details}
+                  </div>
+                </div>
+
+                {selectedReport.issues && (
+                  <div>
+                    <span className="text-[11px] uppercase font-bold tracking-wider text-amber-500 block mb-1">ปัญหาและอุปสรรค</span>
+                    <div className="text-sm text-amber-200/90 whitespace-pre-line leading-relaxed bg-amber-500/5 p-4 rounded-lg border border-amber-500/10">
+                      {selectedReport.issues}
+                    </div>
+                  </div>
+                )}
+
+                {selectedReport.solutions && (
+                  <div>
+                    <span className="text-[11px] uppercase font-bold tracking-wider text-emerald-400 block mb-1">แนวทางการแก้ไข</span>
+                    <div className="text-sm text-emerald-200/90 whitespace-pre-line leading-relaxed bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/10">
+                      {selectedReport.solutions}
+                    </div>
+                  </div>
+                )}
+
+                {selectedReport.nextSteps && (
+                  <div>
+                    <span className="text-[11px] uppercase font-bold tracking-wider text-sky-400 block mb-1">งานที่จะทำต่อ</span>
+                    <div className="text-sm text-sky-200/90 whitespace-pre-line leading-relaxed bg-sky-500/5 p-4 rounded-lg border border-sky-500/10">
+                      {selectedReport.nextSteps}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* photos list */}

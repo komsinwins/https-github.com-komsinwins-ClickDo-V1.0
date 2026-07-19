@@ -45,6 +45,8 @@ export const INITIAL_PROJECTS: Project[] = [
     startDate: '2026-07-01',
     endDate: '2026-07-15', // 5 days left from July 10, 2026! Triggers warning
     durationDays: 14,
+    contractEndDate: '2026-07-25',
+    closeDate: '2026-07-20',
     ownerName: 'บริษัท อมตะ ยูทิลิตี้ส์ จำกัด (มหาชน)',
     partnerCompany: 'บริษัท นีโอ เอนเนอร์ยี่ ซิสเต็มส์ จำกัด',
     salesPerson: 'นพพล รักดี',

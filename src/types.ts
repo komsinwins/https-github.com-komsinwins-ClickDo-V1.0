@@ -31,6 +31,16 @@ export interface ContractorInfo {
   installments: PaymentMilestone[];
 }
 
+export interface SOWSubTask {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  durationDays: number;
+  progress: number; // 0 to 100
+  status: 'Not Started' | 'In Progress' | 'Completed';
+}
+
 export interface SOWItem {
   id: string;
   taskName: string;
@@ -40,6 +50,7 @@ export interface SOWItem {
   startDate: string;
   endDate: string;
   assignee: string;
+  subTasks?: SOWSubTask[];
 }
 
 export interface OrderItem {
@@ -67,6 +78,9 @@ export interface ReportLog {
   weekRange?: string; // "Week 1 (10 Jul - 16 Jul)" etc.
   title: string;
   details: string;
+  issues?: string;
+  solutions?: string;
+  nextSteps?: string;
   photos: string[]; // Base64 strings of uploaded photos
   reporter: string;
 }
@@ -90,6 +104,8 @@ export interface Project {
   startDate: string;
   endDate: string;
   durationDays: number;
+  contractEndDate?: string;
+  closeDate?: string;
   ownerName: string;
   partnerCompany: string;
   salesPerson: string;
