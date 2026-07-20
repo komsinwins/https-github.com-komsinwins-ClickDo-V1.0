@@ -321,6 +321,31 @@ export default function DashboardOverview({
           className="absolute right-0 top-0 h-full w-2/3 object-cover opacity-60 mix-blend-screen select-none"
         />
 
+        {/* Real-time Cloud Sync Badge (Universal Access) */}
+        <div className="absolute top-4 right-4 z-30 flex items-center gap-2.5 bg-zinc-950/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-zinc-800 shadow-lg no-print">
+          <div className={`w-2 h-2 rounded-full ${
+            firebaseStatus === 'connected'
+              ? 'bg-lime-500 animate-pulse'
+              : firebaseStatus === 'connecting'
+              ? 'bg-yellow-500 animate-bounce'
+              : firebaseStatus === 'error'
+              ? 'bg-red-500 animate-pulse'
+              : 'bg-zinc-600'
+          }`} />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-300">
+            คลาวด์ซิงก์: {firebaseStatus === 'connected' ? 'เชื่อมต่อแล้ว' : firebaseStatus === 'connecting' ? 'กำลังซิงก์...' : firebaseStatus === 'error' ? 'การซิงก์ขัดข้อง' : 'บันทึกในเครื่อง'}
+          </span>
+          {onConfigureFirebase && (
+            <button
+              type="button"
+              onClick={onConfigureFirebase}
+              className="text-[9px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-lime-400 font-bold px-2 py-0.5 rounded transition-all cursor-pointer"
+            >
+              ตั้งค่าคลาวด์
+            </button>
+          )}
+        </div>
+
         {/* Hero content */}
         <div className="relative z-20 p-8 md:p-12 flex flex-col justify-between min-h-[220px]">
           <div>

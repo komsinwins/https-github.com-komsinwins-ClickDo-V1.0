@@ -7,6 +7,20 @@ import React, { useState, useEffect } from 'react';
 import { Project, Contact, ContractorInfo, SOWItem, OrderItem, Diagram, ReportLog, ProjectDocument, Customer } from './types';
 import { INITIAL_PROJECTS, DEFAULT_POSITIONS, DEFAULT_SALESPEOPLE, DEFAULT_PROJECT_MANAGERS, DEFAULT_STATUSES, INITIAL_CUSTOMERS } from './initialData';
 import { localDb } from './dbLocal';
+import { 
+  getFirebaseInstance, 
+  getFirebaseConfig, 
+  saveCustomFirebaseConfig, 
+  clearCustomFirebaseConfig, 
+  fetchProjectsFromFirebase, 
+  fetchCustomersFromFirebase, 
+  saveProjectToFirebase, 
+  saveAllProjectsToFirebase, 
+  saveCustomerToFirebase, 
+  saveAllCustomersToFirebase, 
+  deleteProjectFromFirebase, 
+  deleteCustomerFromFirebase 
+} from './firebase';
 
 
 
@@ -51,7 +65,14 @@ import {
   WifiOff,
   Settings2,
   Building2,
-  AlertTriangle
+  AlertTriangle,
+  Cloud,
+  CloudOff,
+  UploadCloud,
+  DownloadCloud,
+  Check,
+  Download,
+  Upload
 } from 'lucide-react';
 
 export default function App() {
@@ -63,8 +84,23 @@ export default function App() {
   const [projectManagers, setProjectManagers] = useState<string[]>([]);
   const [projectStatuses, setProjectStatuses] = useState<string[]>([]);
 
-  // View state: 'dashboard' | 'create_project' | 'edit_project' | 'project_workspace'
-  const [view, setView] = useState<'dashboard' | 'create_project' | 'edit_project' | 'project_workspace'>('dashboard');
+  // Cloud Sync States
+  const [isCloudEnabled, setIsCloudEnabled] = useState<boolean>(false);
+  const [cloudStatus, setCloudStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [cloudError, setCloudError] = useState<string | null>(null);
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState<boolean>(false);
+
+  // Custom Firebase fields state
+  const [useCustomFirebase, setUseCustomFirebase] = useState<boolean>(false);
+  const [fbApiKey, setFbApiKey] = useState('');
+  const [fbAuthDomain, setFbAuthDomain] = useState('');
+  const [fbProjectId, setFbProjectId] = useState('');
+  const [fbStorageBucket, setFbStorageBucket] = useState('');
+  const [fbMessagingSenderId, setFbMessagingSenderId] = useState('');
+  const [fbAppId, setFbAppId] = useState('');
+
+  // View state: 'dashboard' | 'create_project' | 'edit_project' | 'project_workspace' | 'customers'
+  const [view, setView] = useState<'dashboard' | 'create_project' | 'edit_project' | 'project_workspace' | 'customers'>('dashboard');
 
   // Subtab for project workspace
   const [workspaceTab, setWorkspaceTab] = useState<'details' | 'sow' | 'calendar' | 'diagrams' | 'contacts' | 'contractor' | 'orders' | 'reports' | 'documents'>('details');
@@ -74,12 +110,59 @@ export default function App() {
   const [canvasTitle, setCanvasTitle] = useState('');
   const [canvasType, setCanvasType] = useState<'Placement' | 'Connection' | 'Other'>('Placement');
 
-  // Load state on mount
+  // Load custom Firebase config if available
+  useEffect(() => {
+    const config = getFirebaseConfig();
+    const storedCustom = localStorage.getItem('clickdo_firebase_custom_config');
+    if (storedCustom && config) {
+      setUseCustomFirebase(true);
+      setFbApiKey(config.apiKey || '');
+      setFbAuthDomain(config.authDomain || '');
+      setFbProjectId(config.projectId || '');
+      setFbStorageBucket(config.storageBucket || '');
+      setFbMessagingSenderId(config.messagingSenderId || '');
+      setFbAppId(config.appId || '');
+    }
+  }, []);
+
+  // Load state on mount and sync changes
   useEffect(() => {
     const initData = async () => {
-      // 1. Projects
-      let loadedProjects = await localDb.get<Project[]>('clickdo_projects');
-      if (!loadedProjects) {
+      const cloudPref = localStorage.getItem('clickdo_cloud_enabled') === 'true';
+      setIsCloudEnabled(cloudPref);
+
+      let loadedProjects: Project[] = [];
+      let loadedCustomers: Customer[] = [];
+
+      if (cloudPref) {
+        setCloudStatus('connecting');
+        try {
+          const instance = getFirebaseInstance();
+          if (instance) {
+            loadedProjects = await fetchProjectsFromFirebase();
+            loadedCustomers = await fetchCustomersFromFirebase();
+            setCloudStatus('connected');
+            setCloudError(null);
+          } else {
+            throw new Error('ไม่สามารถเริ่มต้นระบบคลาวด์ได้');
+          }
+        } catch (err: any) {
+          console.error('Failed to sync with cloud on startup, falling back to local database:', err);
+          setCloudStatus('error');
+          setCloudError(err.message || 'Connection error');
+          // Fall back to local
+          loadedProjects = await localDb.get<Project[]>('clickdo_projects') || [];
+          loadedCustomers = await localDb.get<Customer[]>('clickdo_customers') || [];
+        }
+      } else {
+        setCloudStatus('disconnected');
+        // Load local
+        loadedProjects = await localDb.get<Project[]>('clickdo_projects') || [];
+        loadedCustomers = await localDb.get<Customer[]>('clickdo_customers') || [];
+      }
+
+      // If loaded empty, fall back to INITIAL_PROJECTS
+      if (loadedProjects.length === 0) {
         const storedProjects = localStorage.getItem('clickdo_projects');
         if (storedProjects) {
           try {
@@ -91,6 +174,9 @@ export default function App() {
           loadedProjects = INITIAL_PROJECTS;
         }
         await localDb.set('clickdo_projects', loadedProjects);
+        if (cloudPref && cloudStatus === 'connected') {
+          await saveAllProjectsToFirebase(loadedProjects).catch(console.error);
+        }
       }
       setProjects(loadedProjects);
 
@@ -163,8 +249,7 @@ export default function App() {
       setProjectStatuses(loadedStatuses);
 
       // 6. Customers
-      let loadedCustomers = await localDb.get<Customer[]>('clickdo_customers');
-      if (!loadedCustomers) {
+      if (loadedCustomers.length === 0) {
         const storedCustomers = localStorage.getItem('clickdo_customers');
         if (storedCustomers) {
           try {
@@ -176,17 +261,32 @@ export default function App() {
           loadedCustomers = INITIAL_CUSTOMERS;
         }
         await localDb.set('clickdo_customers', loadedCustomers);
+        if (cloudPref && cloudStatus === 'connected') {
+          await saveAllCustomersToFirebase(loadedCustomers).catch(console.error);
+        }
       }
       setCustomers(loadedCustomers);
     };
 
     initData();
-  }, []);
+  }, [isCloudEnabled]);
 
   // Save projects helper
   const saveProjects = async (updatedProjects: Project[]) => {
     setProjects(updatedProjects);
     await localDb.set('clickdo_projects', updatedProjects);
+    
+    // Auto-sync projects list
+    if (isCloudEnabled && cloudStatus === 'connected') {
+      try {
+        await saveAllProjectsToFirebase(updatedProjects);
+      } catch (err: any) {
+        console.error('Failed to auto-sync projects:', err);
+        setCloudStatus('error');
+        setCloudError(err.message || 'Auto-sync failed');
+      }
+    }
+
     // Keep selected project synced
     if (selectedProject) {
       const synced = updatedProjects.find((p) => p.id === selectedProject.id);
@@ -194,6 +294,298 @@ export default function App() {
         setSelectedProject(synced);
       }
     }
+  };
+
+  // Customers Callbacks (Fixed local state and added Firebase sync)
+  const handleAddCustomer = async (newCustomer: Customer) => {
+    const updated = [...customers, newCustomer];
+    setCustomers(updated);
+    await localDb.set('clickdo_customers', updated);
+    
+    if (isCloudEnabled && cloudStatus === 'connected') {
+      try {
+        await saveCustomerToFirebase(newCustomer);
+      } catch (err: any) {
+        console.error('Failed to sync new customer to Cloud:', err);
+      }
+    }
+  };
+
+  const handleEditCustomer = async (updatedCustomer: Customer) => {
+    const updated = customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c);
+    setCustomers(updated);
+    await localDb.set('clickdo_customers', updated);
+    
+    if (isCloudEnabled && cloudStatus === 'connected') {
+      try {
+        await saveCustomerToFirebase(updatedCustomer);
+      } catch (err: any) {
+        console.error('Failed to sync updated customer to Cloud:', err);
+      }
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string) => {
+    const updated = customers.filter(c => c.id !== id);
+    setCustomers(updated);
+    await localDb.set('clickdo_customers', updated);
+    
+    if (isCloudEnabled && cloudStatus === 'connected') {
+      try {
+        await deleteCustomerFromFirebase(id);
+      } catch (err: any) {
+        console.error('Failed to sync deleted customer from Cloud:', err);
+      }
+    }
+  };
+
+  // Manual cloud actions
+  const handleUploadToCloud = async () => {
+    setCloudStatus('connecting');
+    try {
+      await saveAllProjectsToFirebase(projects);
+      await saveAllCustomersToFirebase(customers);
+      setCloudStatus('connected');
+      alert('ส่งออกข้อมูลทั้งหมดในเครื่องนี้ขึ้นสู่ระบบคลาวด์เรียบร้อยแล้ว!');
+    } catch (err: any) {
+      console.error(err);
+      setCloudStatus('error');
+      setCloudError(err.message || 'Upload failed');
+      alert('ส่งออกข้อมูลขึ้นคลาวด์ไม่สำเร็จ: ' + (err.message || 'มีข้อผิดพลาด'));
+    }
+  };
+
+  const handleDownloadFromCloud = async () => {
+    if (!confirm('คำเตือน: การกระทำนี้จะลบข้อมูลปัจจุบันบนเครื่องนี้ทั้งหมดและเขียนทับด้วยข้อมูลจากคลาวด์ล่าสุด คุณต้องการดำเนินการต่อหรือไม่?')) {
+      return;
+    }
+    setCloudStatus('connecting');
+    try {
+      const cloudProjects = await fetchProjectsFromFirebase();
+      const cloudCustomers = await fetchCustomersFromFirebase();
+      
+      setProjects(cloudProjects);
+      await localDb.set('clickdo_projects', cloudProjects);
+
+      setCustomers(cloudCustomers);
+      await localDb.set('clickdo_customers', cloudCustomers);
+
+      setCloudStatus('connected');
+      setCloudError(null);
+      alert('ดึงข้อมูลจากระบบคลาวด์และเขียนทับข้อมูลในเครื่องนี้เรียบร้อยแล้ว!');
+    } catch (err: any) {
+      console.error(err);
+      setCloudStatus('error');
+      setCloudError(err.message || 'Download failed');
+      alert('ดึงข้อมูลลงเครื่องไม่สำเร็จ: ' + (err.message || 'มีข้อผิดพลาด'));
+    }
+  };
+
+  const handleToggleCloud = async (enable: boolean) => {
+    setIsCloudEnabled(enable);
+    localStorage.setItem('clickdo_cloud_enabled', enable ? 'true' : 'false');
+    
+    if (enable) {
+      setCloudStatus('connecting');
+      try {
+        const instance = getFirebaseInstance();
+        if (!instance) throw new Error('ไม่สามารถเชื่อมต่อ Firebase ได้');
+        
+        // Test connection by fetching
+        const cloudProjects = await fetchProjectsFromFirebase();
+        const cloudCustomers = await fetchCustomersFromFirebase();
+        
+        if (cloudProjects.length === 0 && projects.length > 0) {
+          if (confirm('ตรวจพบว่าระบบคลาวด์ยังว่างอยู่ แต่คุณมีข้อมูลในเครื่องนี้ คุณต้องการ "อัปโหลดข้อมูลจากเครื่องนี้ขึ้นระบบคลาวด์" เลยหรือไม่? (แนะนำสำหรับการใช้งานครั้งแรก)')) {
+            await saveAllProjectsToFirebase(projects);
+            await saveAllCustomersToFirebase(customers);
+          }
+        } else if (cloudProjects.length > 0) {
+          if (confirm('พบข้อมูลโครงการอยู่บนระบบคลาวด์ คุณต้องการดาวน์โหลดและเขียนทับข้อมูลบนเครื่องปัจจุบันหรือไม่? (ตอบ ตกลง เพื่อใช้ข้อมูลร่วมกันข้ามเครื่อง)')) {
+            setProjects(cloudProjects);
+            await localDb.set('clickdo_projects', cloudProjects);
+            setCustomers(cloudCustomers);
+            await localDb.set('clickdo_customers', cloudCustomers);
+          }
+        }
+        setCloudStatus('connected');
+        setCloudError(null);
+      } catch (err: any) {
+        console.error(err);
+        setCloudStatus('error');
+        setCloudError(err.message || 'Connection failed');
+        alert('เชื่อมต่อระบบคลาวด์ล้มเหลว: ' + (err.message || 'กรุณาตรวจสอบอินเทอร์เน็ตหรือข้อมูลตั้งค่า Firebase'));
+      }
+    } else {
+      setCloudStatus('disconnected');
+    }
+  };
+
+  const handleSaveCustomFirebase = async () => {
+    if (useCustomFirebase) {
+      if (!fbApiKey || !fbProjectId) {
+        alert('กรุณากรอก API Key และ Project ID ให้ครบถ้วน');
+        return;
+      }
+      const newConfig = {
+        apiKey: fbApiKey,
+        authDomain: fbAuthDomain,
+        projectId: fbProjectId,
+        storageBucket: fbStorageBucket,
+        messagingSenderId: fbMessagingSenderId,
+        appId: fbAppId,
+      };
+      saveCustomFirebaseConfig(newConfig);
+    } else {
+      clearCustomFirebaseConfig();
+    }
+    
+    alert('บันทึกข้อมูลและปรับปรุงการตั้งค่า Firebase แล้ว!');
+    // Recorrect connection
+    if (isCloudEnabled) {
+      handleToggleCloud(true);
+    }
+  };
+
+  // Export backup file as JSON
+  const handleExportBackup = () => {
+    try {
+      const backupObject = {
+        app: "clickdo",
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        data: {
+          projects,
+          customers,
+          positions,
+          salespeople: salesPeople,
+          pms: projectManagers,
+          statuses: projectStatuses
+        }
+      };
+      
+      const blob = new Blob([JSON.stringify(backupObject, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `clickdo_backup_${dateStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการส่งออกไฟล์ข้อมูลสำรอง: ' + err.message);
+    }
+  };
+
+  // Import backup file from JSON
+  const handleImportBackup = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        if (!text) {
+          alert('ไม่สามารถอ่านข้อมูลในไฟล์ได้');
+          return;
+        }
+        const parsed = JSON.parse(text);
+        
+        let importedProjects: Project[] | undefined;
+        let importedCustomers: Customer[] | undefined;
+        let importedPositions: string[] | undefined;
+        let importedSalespeople: string[] | undefined;
+        let importedPms: string[] | undefined;
+        let importedStatuses: string[] | undefined;
+
+        if (parsed && parsed.app === 'clickdo' && parsed.data) {
+          importedProjects = parsed.data.projects;
+          importedCustomers = parsed.data.customers;
+          importedPositions = parsed.data.positions;
+          importedSalespeople = parsed.data.salespeople;
+          importedPms = parsed.data.pms;
+          importedStatuses = parsed.data.statuses;
+        } else {
+          // Fallback parsing for simple formats
+          importedProjects = parsed.projects || (Array.isArray(parsed) ? parsed : undefined);
+          importedCustomers = parsed.customers;
+          importedPositions = parsed.positions;
+          importedSalespeople = parsed.salespeople;
+          importedPms = parsed.pms;
+          importedStatuses = parsed.statuses;
+        }
+
+        if (!importedProjects && !importedCustomers) {
+          alert('รูปแบบไฟล์ไม่ถูกต้อง กรุณาเลือกไฟล์สำรองข้อมูลของ ClickDo ที่ถูกต้อง (.json)');
+          return;
+        }
+
+        const confirmMsg = 'คำเตือน: การนำเข้าข้อมูลนี้จะ "เขียนทับ" ข้อมูลโครงการและลูกค้าปัจจุบันบนเครื่องนี้ทั้งหมด! ข้อมูลปัจจุบันจะสูญหาย\n\nคุณต้องการดำเนินการต่อหรือไม่?';
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+
+        // Apply projects
+        if (importedProjects && Array.isArray(importedProjects)) {
+          setProjects(importedProjects);
+          await localDb.set('clickdo_projects', importedProjects);
+        }
+
+        // Apply customers
+        if (importedCustomers && Array.isArray(importedCustomers)) {
+          setCustomers(importedCustomers);
+          await localDb.set('clickdo_customers', importedCustomers);
+        }
+
+        // Apply configs
+        if (importedPositions && Array.isArray(importedPositions)) {
+          setPositions(importedPositions);
+          await localDb.set('clickdo_positions', importedPositions);
+        }
+        if (importedSalespeople && Array.isArray(importedSalespeople)) {
+          setSalesPeople(importedSalespeople);
+          await localDb.set('clickdo_salespeople', importedSalespeople);
+        }
+        if (importedPms && Array.isArray(importedPms)) {
+          setProjectManagers(importedPms);
+          await localDb.set('clickdo_pms', importedPms);
+        }
+        if (importedStatuses && Array.isArray(importedStatuses)) {
+          setProjectStatuses(importedStatuses);
+          await localDb.set('clickdo_statuses', importedStatuses);
+        }
+
+        alert('นำเข้าและกู้คืนข้อมูลบนเครื่องนี้เรียบร้อยแล้ว!');
+
+        // If Cloud Sync is connected, offer to sync
+        if (isCloudEnabled && cloudStatus === 'connected') {
+          const syncConfirm = 'คุณกำลังเชื่อมต่อกับระบบคลาวด์อยู่ ต้องการ "อัปโหลดข้อมูลที่เพิ่งนำเข้านี้ขึ้นระบบคลาวด์ทันที" เพื่อใช้ร่วมกับเครื่องอื่นด้วยหรือไม่?';
+          if (confirm(syncConfirm)) {
+            try {
+              setCloudStatus('connecting');
+              if (importedProjects && Array.isArray(importedProjects)) {
+                await saveAllProjectsToFirebase(importedProjects);
+              }
+              if (importedCustomers && Array.isArray(importedCustomers)) {
+                await saveAllCustomersToFirebase(importedCustomers);
+              }
+              setCloudStatus('connected');
+              alert('อัปโหลดข้อมูลขึ้นสู่ระบบคลาวด์เรียบร้อยแล้ว!');
+            } catch (cloudErr: any) {
+              console.error(cloudErr);
+              setCloudStatus('error');
+              setCloudError(cloudErr.message || 'Auto-cloud sync failed');
+              alert('ไม่สามารถอัปเดตระบบคลาวด์ได้: ' + (cloudErr.message || 'เกิดข้อผิดพลาด'));
+            }
+          }
+        }
+      } catch (parseErr: any) {
+        console.error(parseErr);
+        alert('วิเคราะห์ไฟล์ JSON ไม่สำเร็จ กรุณาตรวจสอบความถูกต้องของไฟล์: ' + parseErr.message);
+      }
+    };
+    reader.readAsText(file);
   };
 
   // Save custom positions
@@ -474,6 +866,24 @@ export default function App() {
             <span className="text-sm font-semibold">Dashboard Overview</span>
           </button>
 
+          {/* Customer Database Menu Item */}
+          <button
+            id="btn-sidebar-customers"
+            type="button"
+            onClick={() => {
+              setView('customers');
+              setSelectedProject(null);
+            }}
+            className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all ${
+              view === 'customers'
+                ? 'bg-zinc-900 text-lime-400 font-bold border-l-4 border-lime-500 shadow'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+            }`}
+          >
+            <Users className="w-4 h-4 text-lime-500" />
+            <span className="text-sm font-semibold">ฐานข้อมูลลูกค้า (Customers)</span>
+          </button>
+
           {/* Active Project Navigation or Projects list */}
           {selectedProject ? (
             <div className="space-y-1.5 pt-5 border-t border-zinc-900">
@@ -542,7 +952,35 @@ export default function App() {
           )}
         </nav>
 
-
+        {/* Real-time Cloud Sync Card (Sidebar Widget) */}
+        <div className="px-4 py-3 bg-zinc-900/35 rounded-xl border border-zinc-900 mx-4 my-2 no-print">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Database className="w-3.5 h-3.5 text-lime-500" />
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">สถานะคลาวด์</span>
+            </div>
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tight ${
+              cloudStatus === 'connected'
+                ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20'
+                : cloudStatus === 'connecting'
+                ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 animate-pulse'
+                : cloudStatus === 'error'
+                ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                : 'bg-zinc-850 text-zinc-500 border border-zinc-700'
+            }`}>
+              {cloudStatus === 'connected' ? 'Connected' : cloudStatus === 'connecting' ? 'Connecting' : cloudStatus === 'error' ? 'Sync Error' : 'Local Only'}
+            </span>
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => setIsCloudModalOpen(true)}
+            className="w-full mt-2.5 py-1.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-lime-500/40 text-zinc-300 hover:text-lime-400 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+          >
+            {cloudStatus === 'connected' ? <Cloud className="w-3.5 h-3.5 text-lime-400 animate-pulse" /> : <CloudOff className="w-3.5 h-3.5 text-zinc-400" />}
+            <span>เชื่อมต่อ / ซิงก์คลาวด์</span>
+          </button>
+        </div>
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-zinc-900">
@@ -573,15 +1011,28 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2">
+              {view === 'dashboard' && (
+                <button
+                  id="btn-nav-customers-mobile"
+                  type="button"
+                  onClick={() => setView('customers')}
+                  className="p-1.5 bg-zinc-900 text-xs font-bold rounded-lg border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1"
+                  title="ฐานข้อมูลลูกค้า"
+                >
+                  <Users className="w-4 h-4 text-lime-400" />
+                  <span className="text-[10px] pr-1">ลูกค้า</span>
+                </button>
+              )}
               {view !== 'dashboard' && (
                 <button
                   id="btn-nav-dashboard"
                   type="button"
                   onClick={() => { setView('dashboard'); setSelectedProject(null); }}
-                  className="p-1.5 bg-zinc-900 text-xs font-bold rounded-lg border border-zinc-800 text-zinc-300 hover:text-white"
+                  className="p-1.5 bg-zinc-900 text-xs font-bold rounded-lg border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1"
                   title="กลับแดชบอร์ด"
                 >
                   <LayoutDashboard className="w-4 h-4 text-lime-400" />
+                  <span className="text-[10px] pr-1">หน้าแรก</span>
                 </button>
               )}
             </div>
@@ -598,7 +1049,40 @@ export default function App() {
             selectedProject={selectedProject}
             onSelectProject={handleSelectProject}
             onCreateProject={() => setView('create_project')}
+            onConfigureFirebase={() => setIsCloudModalOpen(true)}
+            firebaseStatus={cloudStatus}
           />
+        )}
+
+        {view === 'customers' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-900 pb-5 no-print">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-black text-white font-display tracking-tight flex items-center gap-2">
+                  <Users className="w-7 h-7 text-lime-400" />
+                  <span>ฐานข้อมูลลูกค้าและผู้ว่าจ้าง (Customer Directory)</span>
+                </h1>
+                <p className="text-xs text-zinc-400 mt-1">
+                  ระบบจัดเก็บและซิงก์ข้อมูลรายชื่อผู้ว่าจ้าง/ลูกค้าเพื่อการอ้างอิงรวดเร็วและใช้ร่วมกัน
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setView('dashboard')}
+                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                ← กลับหน้าหลักแดชบอร์ด
+              </button>
+            </div>
+
+            <CustomersManager
+              customers={customers}
+              projects={projects}
+              onAddCustomer={handleAddCustomer}
+              onEditCustomer={handleEditCustomer}
+              onDeleteCustomer={handleDeleteCustomer}
+            />
+          </div>
         )}
 
         {view === 'create_project' && (
@@ -1127,6 +1611,252 @@ export default function App() {
           ระบบจัดระเบียบบริหารโครงการสัญญาก่อสร้างติดตั้งมาตรฐานวิศวรรณโยธาและไฟฟ้า
         </p>
       </footer>
+
+      {/* Real-time Cloud Sync Settings Modal */}
+      {isCloudModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto no-print">
+          <div className="flex min-h-screen items-center justify-center p-4 text-center bg-black/85 backdrop-blur-sm">
+            <div className="relative transform overflow-hidden rounded-2xl bg-zinc-950 border border-zinc-800 p-6 md:p-8 text-left shadow-2xl transition-all w-full max-w-lg space-y-6">
+              
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-zinc-900 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-lime-500/10 flex items-center justify-center border border-lime-500/20">
+                    <Database className="w-5.5 h-5.5 text-lime-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white font-display">ตั้งค่าระบบคลาวด์ซิงก์ (Cloud Sync)</h3>
+                    <p className="text-xs text-zinc-400">ซิงก์ข้อมูลโครงการของคุณไปใช้บนเครื่องอื่นหรือเว็บบราวเซอร์อื่นได้ทันที</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCloudModalOpen(false)}
+                  className="p-1 text-zinc-500 hover:text-white rounded-lg hover:bg-zinc-900 transition-all cursor-pointer"
+                >
+                  <span className="text-xl font-bold font-sans">✕</span>
+                </button>
+              </div>
+
+              {/* Toggle Switch */}
+              <div className="bg-zinc-900/40 border border-zinc-900 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-sm text-white flex items-center gap-2">
+                    <span>เปิดใช้งานระบบคลาวด์ (Enable Cloud Sync)</span>
+                  </h4>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">เปิดบันทึกข้อมูลแบบเรียลไทม์ไปยังคลาวด์เซิร์ฟเวอร์</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleCloud(!isCloudEnabled)}
+                  className={`w-14 h-7.5 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
+                    isCloudEnabled ? 'bg-lime-500' : 'bg-zinc-800'
+                  }`}
+                >
+                  <div className={`bg-black w-5.5 h-5.5 rounded-full shadow-md transform transition-transform duration-200 ${
+                    isCloudEnabled ? 'translate-x-7' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Status Section */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">สถานะการเชื่อมต่อล่าสุด</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-zinc-900/20 border border-zinc-900 rounded-lg p-3">
+                    <span className="text-[10px] text-zinc-500 block leading-none">เชื่อมโยงดาต้าเบส</span>
+                    <span className={`text-xs font-bold block mt-1.5 ${
+                      cloudStatus === 'connected' ? 'text-lime-400' : cloudStatus === 'connecting' ? 'text-yellow-400' : cloudStatus === 'error' ? 'text-red-400' : 'text-zinc-400'
+                    }`}>
+                      {cloudStatus === 'connected' ? '● Connected' : cloudStatus === 'connecting' ? '● Connecting...' : cloudStatus === 'error' ? '● Error' : '○ Offline / Local Only'}
+                    </span>
+                  </div>
+                  <div className="bg-zinc-900/20 border border-zinc-900 rounded-lg p-3">
+                    <span className="text-[10px] text-zinc-500 block leading-none">การซิงก์เรียลไทม์</span>
+                    <span className="text-xs text-zinc-300 font-bold block mt-1.5">
+                      {isCloudEnabled && cloudStatus === 'connected' ? 'เปิดใช้งาน (Auto)' : 'ปิดการทำงาน (Manual)'}
+                    </span>
+                  </div>
+                </div>
+                {cloudError && (
+                  <div className="bg-red-950/20 border border-red-500/20 rounded-lg p-3 text-red-400 text-xs mt-1">
+                    <p className="font-bold">สาเหตุข้อผิดพลาด:</p>
+                    <p className="mt-0.5 font-mono text-[11px]">{cloudError}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Manual Operations */}
+              {isCloudEnabled && cloudStatus === 'connected' && (
+                <div className="space-y-2 bg-zinc-900/10 border border-zinc-900/60 rounded-xl p-4">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">ซิงก์ข้อมูลด้วยมือ (Manual Operations)</span>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleUploadToCloud}
+                      className="py-2.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <UploadCloud className="w-4 h-4 text-yellow-400" />
+                      <span>ส่งข้อมูลขึ้นคลาวด์</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadFromCloud}
+                      className="py-2.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <DownloadCloud className="w-4 h-4 text-lime-400" />
+                      <span>ดึงข้อมูลลงเครื่อง</span>
+                    </button>
+                  </div>
+                  <p className="text-[9.5px] text-zinc-500 mt-1.5 text-center leading-relaxed">
+                    * โดยปกติระบบจะซิงก์อัตโนมัติเมื่อกดบันทึก หากสลับบราวเซอร์ คุณสามารถคลิก <b>"ดึงข้อมูลลงเครื่อง"</b> เพื่อรับข้อมูลล่าสุดได้ทันที
+                  </p>
+                </div>
+              )}
+
+              {/* Database Provider Settings (Default vs Custom) */}
+              <div className="space-y-3 pt-2 border-t border-zinc-900">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">แหล่งข้อมูลฐานข้อมูล</span>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-zinc-400 flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useCustomFirebase}
+                        onChange={(e) => setUseCustomFirebase(e.target.checked)}
+                        className="rounded bg-zinc-900 border-zinc-800 text-lime-500 focus:ring-0 focus:ring-offset-0"
+                      />
+                      <span>ใช้ Firebase ส่วนตัวของฉันเอง</span>
+                    </label>
+                  </div>
+                </div>
+
+                {!useCustomFirebase ? (
+                  <div className="bg-zinc-900/30 border border-zinc-900 rounded-xl p-3.5 space-y-1">
+                    <h5 className="text-xs font-bold text-lime-400 flex items-center gap-1">
+                      <span>ClickDo Shared Database (ค่าเริ่มต้น)</span>
+                    </h5>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      ใช้เซิร์ฟเวอร์ระบบคลาวด์คีย์ข้อมูลส่วนกลางที่ ClickDo จัดสรรให้แบบเปิดโล่ง ข้อมูลจะแชร์แยกกันผ่านรหัสบราวเซอร์ หากข้อมูลสูญหายหรือย้ายเครื่องใหม่ก็สามารถพิมพ์กู้คืนมาได้ทันทีอย่างง่ายดาย
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 bg-zinc-900/20 border border-zinc-900 rounded-xl p-4">
+                    <p className="text-[10.5px] text-zinc-400 mb-1 leading-relaxed">
+                      กรอกข้อมูล API Config โครงการ Firebase ส่วนตัวของคุณ เพื่อแยกจัดเก็บข้อมูลโครงการอย่างปลอดภัยเป็นเอกเทศ
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 font-bold block">Firebase API Key <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={fbApiKey}
+                          onChange={(e) => setFbApiKey(e.target.value)}
+                          placeholder="AIzaSy..."
+                          className="w-full bg-zinc-950 border border-zinc-850 focus:border-lime-500/50 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-700 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 font-bold block">Project ID <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={fbProjectId}
+                          onChange={(e) => setFbProjectId(e.target.value)}
+                          placeholder="click-do-9f5ad"
+                          className="w-full bg-zinc-950 border border-zinc-850 focus:border-lime-500/50 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-700 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 block">Auth Domain</label>
+                        <input
+                          type="text"
+                          value={fbAuthDomain}
+                          onChange={(e) => setFbAuthDomain(e.target.value)}
+                          placeholder="click-do-9f5ad.firebaseapp.com"
+                          className="w-full bg-zinc-950 border border-zinc-850 focus:border-lime-500/50 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-700 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-400 block">App ID</label>
+                        <input
+                          type="text"
+                          value={fbAppId}
+                          onChange={(e) => setFbAppId(e.target.value)}
+                          placeholder="1:923485:web:..."
+                          className="w-full bg-zinc-950 border border-zinc-850 focus:border-lime-500/50 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-700 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={handleSaveCustomFirebase}
+                        className="px-4 py-1.5 bg-lime-600 hover:bg-lime-500 border border-lime-600 text-black font-bold rounded-lg text-xs transition-all cursor-pointer shadow-md"
+                      >
+                        บันทึกโครงสร้างคีย์ส่วนตัว
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Backup & Restore (JSON File) */}
+              <div className="space-y-3 pt-3 border-t border-zinc-900">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">การสำรองและกู้คืนไฟล์ (JSON Backup & Restore)</span>
+                <div className="bg-zinc-900/10 border border-zinc-900/60 rounded-xl p-4 space-y-3">
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    สำรองข้อมูลโครงการและลูกค้าทั้งหมดของคุณเป็นไฟล์เครื่องเดียว (.json) และใช้สำหรับกู้คืนหรือย้ายข้อมูลไปยังบราวเซอร์อื่นได้ทันทีโดยไม่ต้องพึ่งพาคลาวด์หรืออินเทอร์เน็ต
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    {/* Export Button */}
+                    <button
+                      type="button"
+                      onClick={handleExportBackup}
+                      className="py-2.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm hover:text-lime-400"
+                    >
+                      <Download className="w-4 h-4 text-lime-400" />
+                      <span>ดาวน์โหลด JSON สำรอง</span>
+                    </button>
+                    {/* Import Button */}
+                    <label className="py-2.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm hover:text-yellow-400 text-center">
+                      <Upload className="w-4 h-4 text-yellow-400" />
+                      <span>นำเข้ากู้คืน JSON</span>
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleImportBackup(file);
+                            e.target.value = '';
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Footer */}
+              <div className="flex justify-end pt-3 border-t border-zinc-900">
+                <button
+                  type="button"
+                  onClick={() => setIsCloudModalOpen(false)}
+                  className="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-850 text-white rounded-xl text-xs font-bold border border-zinc-800 hover:border-zinc-750 transition-all cursor-pointer shadow"
+                >
+                  ปิดหน้าต่างการตั้งค่า
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
 
         </div>
