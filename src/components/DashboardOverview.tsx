@@ -75,6 +75,14 @@ export default function DashboardOverview({
     }, 0);
   };
 
+  const getProjectActualWorkingDays = (p: Project) => {
+    if (!p.startDate || !p.closeDate) return 0;
+    const start = new Date(p.startDate).getTime();
+    const end = new Date(p.closeDate).getTime();
+    if (isNaN(start) || isNaN(end)) return 0;
+    return Math.max(0, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+  };
+
   // Urgent alerts list: active projects with < 10 days left
   const urgentProjects = projects.filter((p) => {
     if (p.status !== 'Active') return false;
@@ -1092,11 +1100,19 @@ export default function DashboardOverview({
                           {new Date(p.endDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}
                         </span>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] mt-1 bg-slate-50 border border-slate-100 p-1.5 rounded-lg">
-                        <span className="text-slate-500 font-medium">ระยะเวลารวม: <b className="text-slate-800 font-bold">{getProjectDurationDays(p)} วัน</b></span>
-                        <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                        <span className="text-slate-500 font-medium">ระยะทำงานรวม: <b className="text-lime-700 font-bold">{getProjectWorkingDays(p)} วัน</b></span>
-                      </div>
+                      {p.status === 'Closed' ? (
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] mt-1 bg-emerald-50 border border-emerald-100 p-1.5 rounded-lg">
+                          <span className="text-emerald-800 font-medium">ระยะเวลาสัญญาโครงการ: <b className="text-emerald-950 font-bold">{getProjectDurationDays(p)} วัน</b></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+                          <span className="text-emerald-800 font-medium">ระยะเวลาดำเนินงานจริง: <b className="text-emerald-950 font-bold">{getProjectActualWorkingDays(p) || getProjectDurationDays(p)} วัน</b></span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] mt-1 bg-slate-50 border border-slate-100 p-1.5 rounded-lg">
+                          <span className="text-slate-500 font-medium">ระยะเวลารวม: <b className="text-slate-800 font-bold">{getProjectDurationDays(p)} วัน</b></span>
+                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                          <span className="text-slate-500 font-medium">ระยะทำงานรวม: <b className="text-lime-700 font-bold">{getProjectWorkingDays(p)} วัน</b></span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1165,10 +1181,21 @@ export default function DashboardOverview({
                         <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         สัญญา: {p.startDate} - {p.endDate}
                       </span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                      <span>ระยะเวลารวม: <b className="text-slate-800 font-bold">{getProjectDurationDays(p)} วัน</b></span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                      <span>ระยะทำงานรวม: <b className="text-lime-700 font-bold">{getProjectWorkingDays(p)} วัน</b></span>
+                      {p.status === 'Closed' ? (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+                          <span className="text-emerald-700">ระยะเวลาสัญญาโครงการ: <b className="font-bold">{getProjectDurationDays(p)} วัน</b></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+                          <span className="text-emerald-700">ระยะเวลาดำเนินงานจริง: <b className="font-bold">{getProjectActualWorkingDays(p) || getProjectDurationDays(p)} วัน</b></span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                          <span>ระยะเวลารวม: <b className="text-slate-800 font-bold">{getProjectDurationDays(p)} วัน</b></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                          <span>ระยะทำงานรวม: <b className="text-lime-700 font-bold">{getProjectWorkingDays(p)} วัน</b></span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1241,10 +1268,24 @@ export default function DashboardOverview({
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-center text-slate-700 font-semibold font-mono whitespace-nowrap">
-                        {getProjectDurationDays(p)} วัน
+                        {p.status === 'Closed' ? (
+                          <div className="text-emerald-700 font-bold">
+                            {getProjectDurationDays(p)} วัน
+                            <span className="block text-[10px] font-normal text-slate-400 font-sans">(ระยะเวลาสัญญา)</span>
+                          </div>
+                        ) : (
+                          `${getProjectDurationDays(p)} วัน`
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-center text-lime-700 font-bold font-mono whitespace-nowrap">
-                        {getProjectWorkingDays(p)} วัน
+                        {p.status === 'Closed' ? (
+                          <div className="text-emerald-800 font-extrabold">
+                            {getProjectActualWorkingDays(p) || getProjectDurationDays(p)} วัน
+                            <span className="block text-[10px] font-normal text-slate-400 font-sans">(ดำเนินงานจริง)</span>
+                          </div>
+                        ) : (
+                          `${getProjectWorkingDays(p)} วัน`
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-slate-700">
                         {p.projectManager || '-'}
