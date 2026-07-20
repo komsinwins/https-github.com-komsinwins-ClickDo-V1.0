@@ -29,6 +29,7 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [assignee, setAssignee] = useState('');
+  const [durationDaysInput, setDurationDaysInput] = useState<number>(1);
 
   // Sub-task form states
   const [activeSubForm, setActiveSubForm] = useState<{ sowId: string; subId: string | null } | null>(null);
@@ -41,6 +42,9 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
   // Accordion active state for Schedule cards
   const [expandedSOWId, setExpandedSOWId] = useState<string | null>(null);
 
+  const editingItem = editingId ? project.scopesOfWork.find((item) => item.id === editingId) : null;
+  const hasSubTasks = editingItem && editingItem.subTasks && editingItem.subTasks.length > 0;
+
   const resetForm = () => {
     setTaskName('');
     setDescription('');
@@ -49,6 +53,7 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
     setStartDate(project.startDate || '');
     setEndDate(project.endDate || '');
     setAssignee('');
+    setDurationDaysInput(1);
   };
 
   const handleOpenAdd = () => {
@@ -67,6 +72,7 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
     setAssignee(item.assignee);
     setEditingId(item.id);
     setIsAdding(true);
+    setDurationDaysInput(getSOWDurationDays(item));
   };
 
   const handleDelete = (id: string) => {
@@ -82,13 +88,43 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
 
     let finalStatus = status;
     let finalProgress = progress;
-    if (progress === 100) {
-      finalStatus = 'Completed';
-    } else if (progress > 0 && status === 'Not Started') {
-      finalStatus = 'In Progress';
-    } else if (status === 'Completed') {
-      finalProgress = 100;
+
+    if (editingId) {
+      const existingItem = project.scopesOfWork.find((item) => item.id === editingId);
+      if (existingItem && existingItem.subTasks && existingItem.subTasks.length > 0) {
+        const subs = existingItem.subTasks;
+        finalProgress = Math.round(subs.reduce((sum, s) => sum + s.progress, 0) / subs.length);
+        if (finalProgress === 100) {
+          finalStatus = 'Completed';
+        } else if (finalProgress > 0) {
+          finalStatus = 'In Progress';
+        } else {
+          finalStatus = 'Not Started';
+        }
+      } else {
+        if (progress === 100) {
+          finalStatus = 'Completed';
+        } else if (progress > 0 && status === 'Not Started') {
+          finalStatus = 'In Progress';
+        } else if (status === 'Completed') {
+          finalProgress = 100;
+        }
+      }
+    } else {
+      if (progress === 100) {
+        finalStatus = 'Completed';
+      } else if (progress > 0 && status === 'Not Started') {
+        finalStatus = 'In Progress';
+      } else if (status === 'Completed') {
+        finalProgress = 100;
+      }
     }
+
+    const finalStart = startDate || project.startDate || new Date().toISOString().split('T')[0];
+    const startD = new Date(finalStart);
+    const endD = new Date(startD);
+    endD.setDate(startD.getDate() + (durationDaysInput - 1));
+    const finalEnd = isNaN(endD.getTime()) ? finalStart : endD.toISOString().split('T')[0];
 
     if (editingId) {
       // Edit mode
@@ -100,8 +136,8 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
             description,
             status: finalStatus,
             progress: finalProgress,
-            startDate,
-            endDate,
+            startDate: finalStart,
+            endDate: finalEnd,
             assignee,
           };
         }
@@ -116,8 +152,8 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
         description,
         status: finalStatus,
         progress: finalProgress,
-        startDate,
-        endDate,
+        startDate: finalStart,
+        endDate: finalEnd,
         assignee,
         subTasks: [],
       };
@@ -536,30 +572,18 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
             </div>
 
             <div>
-              <label htmlFor="sow-start" className="block text-xs font-semibold text-zinc-400 mb-1">
-                วันเริ่มทำงานขอบข่ายนี้ *
+              <label htmlFor="sow-duration" className="block text-xs font-semibold text-zinc-400 mb-1">
+                ระยะเวลาทำงาน (วัน) *
               </label>
               <input
-                id="sow-start"
-                type="date"
+                id="sow-duration"
+                type="number"
+                min="1"
                 required
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-lime-500 transition-all"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="sow-end" className="block text-xs font-semibold text-zinc-400 mb-1">
-                วันเสร็จสิ้นงานขอบข่ายนี้ *
-              </label>
-              <input
-                id="sow-end"
-                type="date"
-                required
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-lime-500 transition-all"
+                placeholder="ระบุจำนวนวัน เช่น 10"
+                value={durationDaysInput}
+                onChange={(e) => setDurationDaysInput(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-650 text-sm focus:outline-none focus:border-lime-500 transition-all font-mono"
               />
             </div>
 
@@ -588,12 +612,18 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
                   min="0"
                   max="100"
                   step="5"
+                  disabled={!!hasSubTasks}
                   value={progress}
                   onChange={(e) => setProgress(Number(e.target.value))}
-                  className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-lime-500"
+                  className={`w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-lime-500 ${hasSubTasks ? 'opacity-40 cursor-not-allowed' : ''}`}
                 />
                 <span className="font-mono text-sm text-lime-400 font-bold w-10 text-right">{progress}%</span>
               </div>
+              {hasSubTasks && (
+                <span className="text-[10px] text-yellow-500/80 mt-1 block">
+                  * คำนวณอัตโนมัติจากแผนงานใน Schedule plan
+                </span>
+              )}
             </div>
 
             <div>
@@ -602,9 +632,10 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
               </label>
               <select
                 id="sow-status"
+                disabled={!!hasSubTasks}
                 value={status}
                 onChange={(e) => setStatus(e.target.value as any)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-lime-500 transition-all"
+                className={`w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-lime-500 transition-all ${hasSubTasks ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <option value="Not Started">ยังไม่เริ่มต้น (Not Started)</option>
                 <option value="In Progress">กำลังดำเนินงาน (In Progress)</option>

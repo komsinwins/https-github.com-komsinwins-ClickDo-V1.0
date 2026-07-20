@@ -241,97 +241,94 @@ export default function ProjectDetailsForm({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Project Name & Status */}
-        <div className="space-y-4 md:col-span-2">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <label htmlFor="proj-name" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                ชื่อโครงการ *
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
-                  <Tag className="w-4 h-4" />
-                </div>
-                <input
-                  id="proj-name"
-                  type="text"
-                  required
-                  placeholder="เช่น ติดตั้งระบบไฟโซล่าเซลล์ อาคารคลังสินค้า"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-medium transition-all"
-                />
-              </div>
+        {/* Project Name */}
+        <div className="md:col-span-2">
+          <label htmlFor="proj-name" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+            ชื่อโครงการ *
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
+              <Tag className="w-4 h-4" />
             </div>
+            <input
+              id="proj-name"
+              type="text"
+              required
+              placeholder="เช่น ติดตั้งระบบไฟโซล่าเซลล์ อาคารคลังสินค้า"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-medium transition-all"
+            />
+          </div>
+        </div>
 
-            <div>
-              <label htmlFor="proj-status" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                สถานะโครงการ *
-              </label>
-              {isAddingStatus ? (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="ระบุสถานะใหม่"
-                    value={newStatusName}
-                    onChange={(e) => setNewStatusName(e.target.value)}
-                    className="flex-1 bg-zinc-950 border border-emerald-500/50 rounded-lg px-3 py-2 text-white placeholder-zinc-500 text-sm focus:outline-none"
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddStatus}
-                    className="px-3 bg-emerald-500 text-black text-xs font-bold rounded-lg hover:bg-emerald-400 transition-all shrink-0"
-                  >
-                    บันทึก
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingStatus(false)}
-                    className="px-3 bg-zinc-800 text-zinc-300 text-xs font-bold rounded-lg hover:bg-zinc-700 transition-all shrink-0"
-                  >
-                    ยกเลิก
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <select
-                    id="proj-status"
-                    required
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-white font-medium focus:outline-none focus:border-emerald-500 transition-all"
-                  >
-                    <option value="">-- เลือกสถานะ --</option>
-                    {projectStatuses.map((st) => (
-                      <option key={st} value={st}>
-                        {st === 'Active' ? 'กำลังติดตั้ง (Active)' : st === 'Closed' ? 'ปิดโครงการแล้ว (Closed)' : st === 'On Hold' ? 'ระงับชั่วคราว (On Hold)' : st}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingStatus(true)}
-                    className="p-2.5 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border border-zinc-700 rounded-lg transition-all shrink-0 flex items-center justify-center"
-                    title="เพิ่มสถานะใหม่"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                  {status && (
-                    <button
-                      type="button"
-                      onClick={handleDeleteStatus}
-                      className="p-2.5 bg-zinc-800 hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 border border-zinc-700 hover:border-rose-900/50 rounded-lg transition-all shrink-0 flex items-center justify-center"
-                      title="ลบสถานะนี้ออกจากระบบ"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+        {/* Project Status */}
+        <div className="md:col-span-2">
+          <label htmlFor="proj-status" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+            สถานะโครงการ *
+          </label>
+          {isAddingStatus ? (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                required
+                placeholder="ระบุสถานะใหม่"
+                value={newStatusName}
+                onChange={(e) => setNewStatusName(e.target.value)}
+                className="flex-1 bg-zinc-950 border border-emerald-500/50 rounded-lg px-3 py-2 text-white placeholder-zinc-500 text-sm focus:outline-none"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={handleAddStatus}
+                className="px-4 bg-emerald-500 text-black text-xs font-bold rounded-lg hover:bg-emerald-400 transition-all shrink-0"
+              >
+                บันทึก
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAddingStatus(false)}
+                className="px-4 bg-zinc-800 text-zinc-300 text-xs font-bold rounded-lg hover:bg-zinc-700 transition-all shrink-0"
+              >
+                ยกเลิก
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <select
+                id="proj-status"
+                required
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-white font-medium focus:outline-none focus:border-emerald-500 transition-all"
+              >
+                <option value="">-- เลือกสถานะ --</option>
+                {projectStatuses.map((st) => (
+                  <option key={st} value={st}>
+                    {st === 'Active' ? 'กำลังติดตั้ง (Active)' : st === 'Closed' ? 'ปิดโครงการแล้ว (Closed)' : st === 'On Hold' ? 'ระงับชั่วคราว (On Hold)' : st}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setIsAddingStatus(true)}
+                className="p-2.5 bg-zinc-800 hover:bg-zinc-700 text-emerald-400 border border-zinc-700 rounded-lg transition-all shrink-0 flex items-center justify-center"
+                title="เพิ่มสถานะใหม่"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+              {status && (
+                <button
+                  type="button"
+                  onClick={handleDeleteStatus}
+                  className="p-2.5 bg-zinc-800 hover:bg-rose-950/40 text-rose-400 hover:text-rose-300 border border-zinc-700 hover:border-rose-900/50 rounded-lg transition-all shrink-0 flex items-center justify-center"
+                  title="ลบสถานะนี้ออกจากระบบ"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               )}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Installation Site */}

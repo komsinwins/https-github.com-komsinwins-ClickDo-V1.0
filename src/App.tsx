@@ -7,20 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Project, Contact, ContractorInfo, SOWItem, OrderItem, Diagram, ReportLog, ProjectDocument, Customer } from './types';
 import { INITIAL_PROJECTS, DEFAULT_POSITIONS, DEFAULT_SALESPEOPLE, DEFAULT_PROJECT_MANAGERS, DEFAULT_STATUSES, INITIAL_CUSTOMERS } from './initialData';
 
-// Firebase Integrations
-import {
-  getFirebaseConfig,
-  saveCustomFirebaseConfig,
-  clearCustomFirebaseConfig,
-  getFirebaseInstance,
-  fetchProjectsFromFirebase,
-  saveAllProjectsToFirebase,
-  FirebaseConfigDetails,
-  fetchCustomersFromFirebase,
-  saveCustomerToFirebase,
-  saveAllCustomersToFirebase,
-  deleteCustomerFromFirebase
-} from './firebase';
+
 
 // Subcomponents
 import DashboardOverview from './components/DashboardOverview';
@@ -74,67 +61,6 @@ export default function App() {
   const [projectManagers, setProjectManagers] = useState<string[]>([]);
   const [projectStatuses, setProjectStatuses] = useState<string[]>([]);
 
-  // Firebase connection states
-  const [firebaseStatus, setFirebaseStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
-  const [firebaseError, setFirebaseError] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [showFirebaseModal, setShowFirebaseModal] = useState(false);
-
-  // Form states for custom Firebase configuration
-  const [formApiKey, setFormApiKey] = useState('');
-  const [formAuthDomain, setFormAuthDomain] = useState('');
-  const [formProjectId, setFormProjectId] = useState('');
-  const [formStorageBucket, setFormStorageBucket] = useState('');
-  const [formMessagingSenderId, setFormMessagingSenderId] = useState('');
-  const [formAppId, setFormAppId] = useState('');
-
-  // Populate form states when modal opens
-  useEffect(() => {
-    if (showFirebaseModal) {
-      const config = getFirebaseConfig();
-      setFormApiKey(config?.apiKey || '');
-      setFormAuthDomain(config?.authDomain || '');
-      setFormProjectId(config?.projectId || '');
-      setFormStorageBucket(config?.storageBucket || '');
-      setFormMessagingSenderId(config?.messagingSenderId || '');
-      setFormAppId(config?.appId || '');
-    }
-  }, [showFirebaseModal]);
-
-  const handleSaveFirebaseConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formApiKey || !formProjectId) {
-      alert('กรุณากรอก API Key และ Project ID (ค่าบังคับ!)');
-      return;
-    }
-
-    const newConfig: FirebaseConfigDetails = {
-      apiKey: formApiKey.trim(),
-      authDomain: formAuthDomain.trim(),
-      projectId: formProjectId.trim(),
-      storageBucket: formStorageBucket.trim(),
-      messagingSenderId: formMessagingSenderId.trim(),
-      appId: formAppId.trim(),
-    };
-
-    await initializeFirebaseAndSync(newConfig);
-    setShowFirebaseModal(false);
-  };
-
-  const handleClearFirebaseConfig = () => {
-    if (confirm('ยืนยันที่จะล้างข้อมูลตั้งค่า Firebase และกลับไปใช้การซิงค์แบบ Local Storage?')) {
-      clearCustomFirebaseConfig();
-      setFirebaseStatus('disconnected');
-      setFirebaseError(null);
-      // Reload local projects
-      const storedProjects = localStorage.getItem('clickdo_projects');
-      if (storedProjects) {
-        setProjects(JSON.parse(storedProjects));
-      }
-      setShowFirebaseModal(false);
-    }
-  };
-
   // View state: 'dashboard' | 'create_project' | 'edit_project' | 'project_workspace'
   const [view, setView] = useState<'dashboard' | 'create_project' | 'edit_project' | 'project_workspace'>('dashboard');
 
@@ -145,63 +71,6 @@ export default function App() {
   const [activeCanvasDiagram, setActiveCanvasDiagram] = useState<Diagram | null>(null);
   const [canvasTitle, setCanvasTitle] = useState('');
   const [canvasType, setCanvasType] = useState<'Placement' | 'Connection' | 'Other'>('Placement');
-
-  // Initialize Firebase and Synchronize Data
-  const initializeFirebaseAndSync = async (forceConfig?: FirebaseConfigDetails) => {
-    setFirebaseStatus('connecting');
-    setFirebaseError(null);
-
-    if (forceConfig) {
-      saveCustomFirebaseConfig(forceConfig);
-    }
-
-    const config = getFirebaseConfig();
-    if (!config) {
-      setFirebaseStatus('disconnected');
-      return;
-    }
-
-    setIsSyncing(true);
-    try {
-      const dbProjects = await fetchProjectsFromFirebase();
-      if (dbProjects && dbProjects.length > 0) {
-        setProjects(dbProjects);
-        localStorage.setItem('clickdo_projects', JSON.stringify(dbProjects));
-      } else {
-        // Firebase is empty, upload local data as initial setup
-        const localData = localStorage.getItem('clickdo_projects');
-        const parsed = localData ? JSON.parse(localData) : INITIAL_PROJECTS;
-        await saveAllProjectsToFirebase(parsed);
-        setProjects(parsed);
-      }
-
-      // Sync Customers!
-      try {
-        const dbCustomers = await fetchCustomersFromFirebase();
-        if (dbCustomers && dbCustomers.length > 0) {
-          setCustomers(dbCustomers);
-          localStorage.setItem('clickdo_customers', JSON.stringify(dbCustomers));
-        } else {
-          const localCustomersData = localStorage.getItem('clickdo_customers');
-          const parsedCust = localCustomersData ? JSON.parse(localCustomersData) : INITIAL_CUSTOMERS;
-          await saveAllCustomersToFirebase(parsedCust);
-          setCustomers(parsedCust);
-        }
-      } catch (custErr) {
-        console.warn('Could not sync customers collection from Firebase, using local instead:', custErr);
-        const localCustomersData = localStorage.getItem('clickdo_customers');
-        setCustomers(localCustomersData ? JSON.parse(localCustomersData) : INITIAL_CUSTOMERS);
-      }
-
-      setFirebaseStatus('connected');
-    } catch (err: any) {
-      console.error('Firebase connection error:', err);
-      setFirebaseStatus('error');
-      setFirebaseError(err.message || 'ไม่สามารถเชื่อมต่อฐานข้อมูล Firebase ได้ โปรดตรวจสอบโครงสร้างหรือคีย์ API');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   // Load state on mount
   useEffect(() => {
@@ -268,10 +137,16 @@ export default function App() {
       localStorage.setItem('clickdo_statuses', JSON.stringify(DEFAULT_STATUSES));
     }
 
-    // Proactively initialize Firebase sync if keys are set
-    const config = getFirebaseConfig();
-    if (config) {
-      initializeFirebaseAndSync();
+    const storedCustomers = localStorage.getItem('clickdo_customers');
+    if (storedCustomers) {
+      try {
+        setCustomers(JSON.parse(storedCustomers));
+      } catch (e) {
+        setCustomers(INITIAL_CUSTOMERS);
+      }
+    } else {
+      setCustomers(INITIAL_CUSTOMERS);
+      localStorage.setItem('clickdo_customers', JSON.stringify(INITIAL_CUSTOMERS));
     }
   }, []);
 
@@ -284,19 +159,6 @@ export default function App() {
       const synced = updatedProjects.find((p) => p.id === selectedProject.id);
       if (synced) {
         setSelectedProject(synced);
-      }
-    }
-
-    // Auto-sync with Firebase if connected
-    const config = getFirebaseConfig();
-    if (config && firebaseStatus === 'connected') {
-      try {
-        setIsSyncing(true);
-        await saveAllProjectsToFirebase(updatedProjects);
-      } catch (err) {
-        console.error('Failed to auto-sync with Firebase:', err);
-      } finally {
-        setIsSyncing(false);
       }
     }
   };
@@ -678,20 +540,6 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2">
-              <div
-                className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 ${
-                  firebaseStatus === 'connected'
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                    : firebaseStatus === 'error'
-                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                    : 'bg-zinc-900 text-zinc-300 border-zinc-800'
-                }`}
-                title="ฐานข้อมูล Click DO"
-              >
-                <Database className="w-3.5 h-3.5 text-lime-400" />
-                {firebaseStatus === 'connected' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
-              </div>
-
               {view !== 'dashboard' && (
                 <button
                   id="btn-nav-dashboard"
@@ -717,8 +565,6 @@ export default function App() {
             selectedProject={selectedProject}
             onSelectProject={handleSelectProject}
             onCreateProject={() => setView('create_project')}
-            onConfigureFirebase={() => setShowFirebaseModal(true)}
-            firebaseStatus={firebaseStatus}
           />
         )}
 
@@ -1244,140 +1090,7 @@ export default function App() {
         </p>
       </footer>
 
-      {/* Firebase Config Modal */}
-      {showFirebaseModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Database className="w-5 h-5 text-yellow-400" />
-                <h3 className="text-lg font-bold text-white font-display">เชื่อมต่อฐานข้อมูลภายนอก (Techlink V1.1)</h3>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setShowFirebaseModal(false)}
-                className="text-zinc-500 hover:text-white text-sm"
-              >
-                ✕
-              </button>
-            </div>
 
-            <div className="text-xs text-zinc-400 leading-relaxed bg-zinc-950 p-3 rounded-lg border border-zinc-850">
-              <p className="font-bold text-lime-400 mb-1">💡 การเชื่อมข้อมูลกับ Techlink V1.1 (Firebase):</p>
-              ระบุค่าการกำหนดคอนฟิก (Firebase Configuration Credentials) ของฐานข้อมูล Techlink V1.1 เพื่อเชื่อมโยงโครงการและซิงค์ข้อมูลทั้งหมดแบบเรียลไทม์และเก็บรักษาอย่างปลอดภัย
-            </div>
-
-            <form onSubmit={handleSaveFirebaseConfig} className="space-y-4 text-left">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-400 block">API Key *</label>
-                <input
-                  type="password"
-                  required
-                  value={formApiKey}
-                  onChange={(e) => setFormApiKey(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-sm focus:outline-none focus:border-lime-500 font-mono"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-400 block">Project ID *</label>
-                <input
-                  type="text"
-                  required
-                  value={formProjectId}
-                  onChange={(e) => setFormProjectId(e.target.value)}
-                  placeholder="click-do-xxxx"
-                  className="w-full bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-sm focus:outline-none focus:border-lime-500 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-400 block">Auth Domain (ถ้ามี)</label>
-                  <input
-                    type="text"
-                    value={formAuthDomain}
-                    onChange={(e) => setFormAuthDomain(e.target.value)}
-                    placeholder="click-do.firebaseapp.com"
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500 font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-400 block">Storage Bucket (ถ้ามี)</label>
-                  <input
-                    type="text"
-                    value={formStorageBucket}
-                    onChange={(e) => setFormStorageBucket(e.target.value)}
-                    placeholder="click-do.appspot.com"
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-400 block">Messaging Sender ID (ถ้ามี)</label>
-                  <input
-                    type="text"
-                    value={formMessagingSenderId}
-                    onChange={(e) => setFormMessagingSenderId(e.target.value)}
-                    placeholder="123456789"
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500 font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-400 block">App ID (ถ้ามี)</label>
-                  <input
-                    type="text"
-                    value={formAppId}
-                    onChange={(e) => setFormAppId(e.target.value)}
-                    placeholder="1:12345:web:xxxx"
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500 font-mono"
-                  />
-                </div>
-              </div>
-
-              {firebaseError && (
-                <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/30 p-2.5 rounded-lg">
-                  ⚠️ {firebaseError}
-                </div>
-              )}
-
-              <div className="flex items-center gap-3 pt-3 border-t border-zinc-800">
-                <button
-                  type="submit"
-                  disabled={isSyncing}
-                  className="flex-1 bg-lime-500 hover:bg-lime-450 text-black text-xs font-bold py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-lime-950/20 disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSyncing ? 'กำลังเชื่อมต่อ...' : 'บันทึกและซิงค์'}
-                </button>
-
-                {getFirebaseConfig() && (
-                  <button
-                    type="button"
-                    onClick={handleClearFirebaseConfig}
-                    className="px-3 py-2 bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-bold rounded-lg transition-all"
-                  >
-                    ตัดการซิงค์
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setShowFirebaseModal(false)}
-                  className="px-3 py-2 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs font-bold rounded-lg transition-all"
-                >
-                  ปิด
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
         </div>
       </div>
     </div>

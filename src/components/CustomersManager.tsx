@@ -31,9 +31,6 @@ interface CustomersManagerProps {
   onAddCustomer: (customer: Customer) => void;
   onEditCustomer: (customer: Customer) => void;
   onDeleteCustomer: (id: string) => void;
-  firebaseStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
-  isSyncing: boolean;
-  onSync: () => void;
 }
 
 export default function CustomersManager({
@@ -42,9 +39,6 @@ export default function CustomersManager({
   onAddCustomer,
   onEditCustomer,
   onDeleteCustomer,
-  firebaseStatus,
-  isSyncing,
-  onSync,
 }: CustomersManagerProps) {
   const [search, setSearch] = useState('');
   const [industryFilter, setIndustryFilter] = useState('All');
@@ -160,35 +154,16 @@ export default function CustomersManager({
         <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-lime-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] bg-yellow-500/15 text-yellow-400 px-2.5 py-0.5 rounded-full font-bold border border-yellow-500/25">
-                Techlink V1.1 DB
-              </span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                firebaseStatus === 'connected' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-400'
-              }`}>
-                {firebaseStatus === 'connected' ? 'เชื่อมต่อระบบแล้ว' : 'โหมดโลคอล'}
-              </span>
-            </div>
             <h2 className="text-xl md:text-2xl font-black text-white font-display tracking-tight leading-tight flex items-center gap-2">
               <Building2 className="w-6 h-6 text-lime-400" />
-              ฐานข้อมูลลูกค้า Techlink V1.1
+              ฐานข้อมูลลูกค้า
             </h2>
             <p className="text-xs text-zinc-400">
-              จัดการประวัติและรายละเอียดข้อมูลบริษัทลูกค้า ผู้ประสานงาน และสถานะการชำระเงิน เชื่อมโยงระบบคลาวด์เรียลไทม์
+              จัดการประวัติและรายละเอียดข้อมูลบริษัทลูกค้า ผู้ประสานงาน และสถานะการชำระเงิน
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={onSync}
-              disabled={isSyncing}
-              className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-750 text-xs font-bold rounded-lg border border-zinc-700 transition-all flex items-center gap-2 text-zinc-300 disabled:opacity-50"
-              title="ดึงข้อมูลล่าสุดจาก Firebase"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>ซิงค์ข้อมูล</span>
-            </button>
             <button
               onClick={handleOpenAddForm}
               className="px-4 py-2 bg-lime-500 hover:bg-lime-400 text-black text-xs font-bold rounded-lg shadow-md hover:shadow-lime-500/10 transition-all flex items-center gap-2 cursor-pointer"

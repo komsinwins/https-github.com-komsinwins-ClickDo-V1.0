@@ -23,6 +23,7 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
   const [title, setTitle] = useState('');
   const [details, setDetails] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const [photoCaptions, setPhotoCaptions] = useState<string[]>([]);
   const [reporter, setReporter] = useState(project.projectManager || '');
   const [issues, setIssues] = useState('');
   const [solutions, setSolutions] = useState('');
@@ -71,6 +72,7 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
         try {
           const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
           setPhotos((prev) => [...prev, dataUrl]);
+          setPhotoCaptions((prev) => [...prev, 'ภาพถ่ายจากกล้องจริง']);
           
           // Flash effect
           const flash = document.getElementById('camera-flash');
@@ -126,6 +128,7 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
     setSolutions('');
     setNextSteps('');
     setPhotos([]);
+    setPhotoCaptions([]);
     setReporter(project.projectManager || '');
     stopCamera();
   };
@@ -140,23 +143,29 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach((file) => {
+    Array.from(files).forEach((file: File) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
           setPhotos((prev) => [...prev, reader.result as string]);
+          const baseName = file.name.split('.')[0] || 'ภาพงานติดตั้ง';
+          setPhotoCaptions((prev) => [...prev, baseName]);
         }
       };
-      reader.readAsDataURL(file as Blob);
+      reader.readAsDataURL(file);
     });
   };
 
   const handleAddMockPhoto = (url: string) => {
+    const mockItem = MOCK_PHOTOS.find((p) => p.url === url);
+    const mockName = mockItem ? mockItem.name : 'ภาพงานติดตั้ง';
     setPhotos((prev) => [...prev, url]);
+    setPhotoCaptions((prev) => [...prev, mockName]);
   };
 
   const handleRemovePhoto = (indexToRemove: number) => {
     setPhotos((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    setPhotoCaptions((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -174,6 +183,7 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
       solutions: solutions.trim(),
       nextSteps: nextSteps.trim(),
       photos,
+      photoCaptions,
       reporter: reporter.trim(),
     };
 
@@ -199,8 +209,18 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
     if (!printWindow) return;
 
     const photosHtml = report.photos && report.photos.length > 0
-      ? `<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:15px; margin-top:20px;">
-          ${report.photos.map(p => `<img src="${p}" style="width:100%; border-radius:8px; border:1px solid #ddd; object-fit:cover; height:200px;" referrerPolicy="no-referrer" />`).join('')}
+      ? `<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:20px;">
+          ${report.photos.map((p, index) => {
+            const caption = report.photoCaptions?.[index] || `ภาพถ่ายที่ ${index + 1}`;
+            return `
+              <div style="border:1px solid #eee; border-radius:8px; overflow:hidden; display:flex; flex-direction:column; background:#fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <img src="${p}" style="width:100%; object-fit:cover; height:180px;" referrerPolicy="no-referrer" />
+                <div style="padding:8px 12px; text-align:center; background:#f9f9f9; font-size:12px; font-weight:bold; color:#222; border-top:1px solid #eee;">
+                  ${caption}
+                </div>
+              </div>
+            `;
+          }).join('')}
          </div>`
       : '<p style="color:#666; font-style:italic;">ไม่มีรูปภาพแนบในรายงานฉบับนี้</p>';
 
@@ -629,18 +649,31 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
 
                   {/* Uploaded photos preview list */}
                   {photos.length > 0 && (
-                    <div className="grid grid-cols-4 gap-2 pt-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                       {photos.map((src, index) => (
-                        <div key={index} className="relative group aspect-video bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-                          <img src={src} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePhoto(index)}
-                            className="absolute top-1 right-1 p-1 bg-black/80 rounded text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="ลบรูป"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                        <div key={index} className="flex flex-col bg-zinc-900/50 border border-zinc-800 rounded-lg p-2 space-y-1.5 relative group">
+                          <div className="aspect-video bg-black rounded overflow-hidden relative">
+                            <img src={src} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePhoto(index)}
+                              className="absolute top-1 right-1 p-1 bg-black/85 rounded text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                              title="ลบรูป"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="คำบรรยายใต้ภาพ..."
+                            value={photoCaptions[index] || ''}
+                            onChange={(e) => {
+                              const newCaptions = [...photoCaptions];
+                              newCaptions[index] = e.target.value;
+                              setPhotoCaptions(newCaptions);
+                            }}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-white text-[10px] focus:outline-none focus:border-lime-500 transition-all placeholder-zinc-650 font-medium"
+                          />
                         </div>
                       ))}
                     </div>
@@ -759,28 +792,41 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
               </div>
 
               {/* photos list */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <span className="text-xs font-semibold text-zinc-400 block border-b border-zinc-800 pb-1">
                   รูปถ่ายปฏิบัติงานจริง (Photo Attachments)
                 </span>
                 {(!selectedReport.photos || selectedReport.photos.length === 0) ? (
                   <p className="text-xs text-zinc-500 italic">ไม่มีการถ่ายภาพแนบสำหรับรายงานบันทึกฉบับนี้</p>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {selectedReport.photos.map((photo, index) => (
-                      <div
-                        key={index}
-                        className="group relative aspect-video bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden cursor-pointer"
-                        onClick={() => window.open(photo, '_blank')}
-                      >
-                        <img
-                          src={photo}
-                          alt={`Report Photo ${index + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {selectedReport.photos.map((photo, index) => {
+                      const caption = selectedReport.photoCaptions?.[index] || `ภาพถ่ายที่ ${index + 1}`;
+                      return (
+                        <div
+                          key={index}
+                          className="group bg-zinc-950 border border-zinc-850 rounded-lg overflow-hidden flex flex-col"
+                        >
+                          <div
+                            className="relative aspect-video bg-black overflow-hidden cursor-pointer"
+                            onClick={() => window.open(photo, '_blank')}
+                            title="คลิกเพื่อดูภาพขนาดเต็ม"
+                          >
+                            <img
+                              src={photo}
+                              alt={caption}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                          <div className="p-2 bg-zinc-900/60 border-t border-zinc-850 text-center">
+                            <span className="text-xs font-medium text-zinc-300 block truncate">
+                              {caption}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

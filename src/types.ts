@@ -82,6 +82,7 @@ export interface ReportLog {
   solutions?: string;
   nextSteps?: string;
   photos: string[]; // Base64 strings of uploaded photos
+  photoCaptions?: string[]; // Captions corresponding to each photo
   reporter: string;
 }
 

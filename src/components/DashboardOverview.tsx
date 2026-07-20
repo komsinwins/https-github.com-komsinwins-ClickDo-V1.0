@@ -336,21 +336,7 @@ export default function DashboardOverview({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-4 mt-6">
-            <button
-              id="btn-create-project-hero"
-              type="button"
-              onClick={onCreateProject}
-              className="px-5 py-3 bg-gradient-to-r from-lime-500 to-yellow-500 hover:from-lime-400 hover:to-yellow-400 text-black font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-lime-950/40 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
-            >
-              <Plus className="w-5 h-5" />
-              <span>สร้างโครงการใหม่</span>
-            </button>
-            <div className="px-4 py-3 bg-zinc-900/90 border border-zinc-800 rounded-xl text-xs font-mono text-zinc-400 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-lime-400" />
-              <span>เวลาปัจจุบันระบบ: 10 ก.ค. 2026</span>
-            </div>
-          </div>
+
         </div>
       </div>
 
@@ -568,41 +554,7 @@ export default function DashboardOverview({
         </div>
       </div>
 
-      {/* Techlink V1.1 Database Connection banner - Approach 3 */}
-      {onConfigureFirebase && (
-        <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-yellow-500/10 text-yellow-400 rounded-lg">
-              <Database className="w-5 h-5 text-lime-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="text-sm font-bold text-white font-display">ระบบเชื่อมต่อฐานข้อมูลภายนอก (Techlink V1.1)</h4>
-                {firebaseStatus === 'connected' ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
-                    <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-                    เชื่อมต่อแล้ว
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[10px] bg-zinc-950 text-zinc-500 border border-zinc-850 px-2 py-0.5 rounded-full font-bold">
-                    Local Database (ออฟไลน์)
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                ซิงค์ข้อมูลจัดระเบียบบริหารโครงการ แผนงาน ไดอะแกรม และเอกสารร่วมกับฐานข้อมูลกลาง Techlink V1.1 บนคลาวด์โดยตรง
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onConfigureFirebase}
-            className="w-full md:w-auto px-4 py-2 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow"
-          >
-            <Settings className="w-4 h-4 text-lime-400" />
-            <span>ตั้งค่าเชื่อมต่อ Techlink V1.1</span>
-          </button>
-        </div>
-      )}
+
 
       {/* Analytics & Performance Charts Area */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
