@@ -6,6 +6,8 @@
 import React, { useState, useEffect } from 'react';
 import { Project, Contact, ContractorInfo, SOWItem, OrderItem, Diagram, ReportLog, ProjectDocument, Customer } from './types';
 import { INITIAL_PROJECTS, DEFAULT_POSITIONS, DEFAULT_SALESPEOPLE, DEFAULT_PROJECT_MANAGERS, DEFAULT_STATUSES, INITIAL_CUSTOMERS } from './initialData';
+import { localDb } from './dbLocal';
+
 
 
 
@@ -74,86 +76,117 @@ export default function App() {
 
   // Load state on mount
   useEffect(() => {
-    const storedProjects = localStorage.getItem('clickdo_projects');
-    const storedPositions = localStorage.getItem('clickdo_positions');
-
-    if (storedProjects) {
-      try {
-        const parsed = JSON.parse(storedProjects);
-        setProjects(parsed);
-      } catch (e) {
-        setProjects(INITIAL_PROJECTS);
+    const initData = async () => {
+      // 1. Projects
+      let loadedProjects = await localDb.get<Project[]>('clickdo_projects');
+      if (!loadedProjects) {
+        const storedProjects = localStorage.getItem('clickdo_projects');
+        if (storedProjects) {
+          try {
+            loadedProjects = JSON.parse(storedProjects);
+          } catch (e) {
+            loadedProjects = INITIAL_PROJECTS;
+          }
+        } else {
+          loadedProjects = INITIAL_PROJECTS;
+        }
+        await localDb.set('clickdo_projects', loadedProjects);
       }
-    } else {
-      setProjects(INITIAL_PROJECTS);
-      localStorage.setItem('clickdo_projects', JSON.stringify(INITIAL_PROJECTS));
-    }
+      setProjects(loadedProjects);
 
-    if (storedPositions) {
-      try {
-        setPositions(JSON.parse(storedPositions));
-      } catch (e) {
-        setPositions(DEFAULT_POSITIONS);
+      // 2. Positions
+      let loadedPositions = await localDb.get<string[]>('clickdo_positions');
+      if (!loadedPositions) {
+        const storedPositions = localStorage.getItem('clickdo_positions');
+        if (storedPositions) {
+          try {
+            loadedPositions = JSON.parse(storedPositions);
+          } catch (e) {
+            loadedPositions = DEFAULT_POSITIONS;
+          }
+        } else {
+          loadedPositions = DEFAULT_POSITIONS;
+        }
+        await localDb.set('clickdo_positions', loadedPositions);
       }
-    } else {
-      setPositions(DEFAULT_POSITIONS);
-      localStorage.setItem('clickdo_positions', JSON.stringify(DEFAULT_POSITIONS));
-    }
+      setPositions(loadedPositions);
 
-    const storedSalesPeople = localStorage.getItem('clickdo_salespeople');
-    const storedPMs = localStorage.getItem('clickdo_pms');
-
-    if (storedSalesPeople) {
-      try {
-        setSalesPeople(JSON.parse(storedSalesPeople));
-      } catch (e) {
-        setSalesPeople(DEFAULT_SALESPEOPLE);
+      // 3. Salespeople
+      let loadedSalesPeople = await localDb.get<string[]>('clickdo_salespeople');
+      if (!loadedSalesPeople) {
+        const storedSalesPeople = localStorage.getItem('clickdo_salespeople');
+        if (storedSalesPeople) {
+          try {
+            loadedSalesPeople = JSON.parse(storedSalesPeople);
+          } catch (e) {
+            loadedSalesPeople = DEFAULT_SALESPEOPLE;
+          }
+        } else {
+          loadedSalesPeople = DEFAULT_SALESPEOPLE;
+        }
+        await localDb.set('clickdo_salespeople', loadedSalesPeople);
       }
-    } else {
-      setSalesPeople(DEFAULT_SALESPEOPLE);
-      localStorage.setItem('clickdo_salespeople', JSON.stringify(DEFAULT_SALESPEOPLE));
-    }
+      setSalesPeople(loadedSalesPeople);
 
-    if (storedPMs) {
-      try {
-        setProjectManagers(JSON.parse(storedPMs));
-      } catch (e) {
-        setProjectManagers(DEFAULT_PROJECT_MANAGERS);
+      // 4. Project Managers
+      let loadedPMs = await localDb.get<string[]>('clickdo_pms');
+      if (!loadedPMs) {
+        const storedPMs = localStorage.getItem('clickdo_pms');
+        if (storedPMs) {
+          try {
+            loadedPMs = JSON.parse(storedPMs);
+          } catch (e) {
+            loadedPMs = DEFAULT_PROJECT_MANAGERS;
+          }
+        } else {
+          loadedPMs = DEFAULT_PROJECT_MANAGERS;
+        }
+        await localDb.set('clickdo_pms', loadedPMs);
       }
-    } else {
-      setProjectManagers(DEFAULT_PROJECT_MANAGERS);
-      localStorage.setItem('clickdo_pms', JSON.stringify(DEFAULT_PROJECT_MANAGERS));
-    }
+      setProjectManagers(loadedPMs);
 
-    const storedStatuses = localStorage.getItem('clickdo_statuses');
-    if (storedStatuses) {
-      try {
-        setProjectStatuses(JSON.parse(storedStatuses));
-      } catch (e) {
-        setProjectStatuses(DEFAULT_STATUSES);
+      // 5. Project Statuses
+      let loadedStatuses = await localDb.get<string[]>('clickdo_statuses');
+      if (!loadedStatuses) {
+        const storedStatuses = localStorage.getItem('clickdo_statuses');
+        if (storedStatuses) {
+          try {
+            loadedStatuses = JSON.parse(storedStatuses);
+          } catch (e) {
+            loadedStatuses = DEFAULT_STATUSES;
+          }
+        } else {
+          loadedStatuses = DEFAULT_STATUSES;
+        }
+        await localDb.set('clickdo_statuses', loadedStatuses);
       }
-    } else {
-      setProjectStatuses(DEFAULT_STATUSES);
-      localStorage.setItem('clickdo_statuses', JSON.stringify(DEFAULT_STATUSES));
-    }
+      setProjectStatuses(loadedStatuses);
 
-    const storedCustomers = localStorage.getItem('clickdo_customers');
-    if (storedCustomers) {
-      try {
-        setCustomers(JSON.parse(storedCustomers));
-      } catch (e) {
-        setCustomers(INITIAL_CUSTOMERS);
+      // 6. Customers
+      let loadedCustomers = await localDb.get<Customer[]>('clickdo_customers');
+      if (!loadedCustomers) {
+        const storedCustomers = localStorage.getItem('clickdo_customers');
+        if (storedCustomers) {
+          try {
+            loadedCustomers = JSON.parse(storedCustomers);
+          } catch (e) {
+            loadedCustomers = INITIAL_CUSTOMERS;
+          }
+        } else {
+          loadedCustomers = INITIAL_CUSTOMERS;
+        }
+        await localDb.set('clickdo_customers', loadedCustomers);
       }
-    } else {
-      setCustomers(INITIAL_CUSTOMERS);
-      localStorage.setItem('clickdo_customers', JSON.stringify(INITIAL_CUSTOMERS));
-    }
+      setCustomers(loadedCustomers);
+    };
+
+    initData();
   }, []);
 
   // Save projects helper
   const saveProjects = async (updatedProjects: Project[]) => {
     setProjects(updatedProjects);
-    localStorage.setItem('clickdo_projects', JSON.stringify(updatedProjects));
+    await localDb.set('clickdo_projects', updatedProjects);
     // Keep selected project synced
     if (selectedProject) {
       const synced = updatedProjects.find((p) => p.id === selectedProject.id);
@@ -164,24 +197,24 @@ export default function App() {
   };
 
   // Save custom positions
-  const handleUpdatePositions = (updatedPositions: string[]) => {
+  const handleUpdatePositions = async (updatedPositions: string[]) => {
     setPositions(updatedPositions);
-    localStorage.setItem('clickdo_positions', JSON.stringify(updatedPositions));
+    await localDb.set('clickdo_positions', updatedPositions);
   };
 
-  const handleUpdateSalesPeople = (updated: string[]) => {
+  const handleUpdateSalesPeople = async (updated: string[]) => {
     setSalesPeople(updated);
-    localStorage.setItem('clickdo_salespeople', JSON.stringify(updated));
+    await localDb.set('clickdo_salespeople', updated);
   };
 
-  const handleUpdateProjectManagers = (updated: string[]) => {
+  const handleUpdateProjectManagers = async (updated: string[]) => {
     setProjectManagers(updated);
-    localStorage.setItem('clickdo_pms', JSON.stringify(updated));
+    await localDb.set('clickdo_pms', updated);
   };
 
-  const handleUpdateProjectStatuses = (updated: string[]) => {
+  const handleUpdateProjectStatuses = async (updated: string[]) => {
     setProjectStatuses(updated);
-    localStorage.setItem('clickdo_statuses', JSON.stringify(updated));
+    await localDb.set('clickdo_statuses', updated);
   };
 
   // Create Project Callback

@@ -78,13 +78,34 @@ export default function DocumentsManager({ project, onUpdateDocuments }: Documen
     }
   };
 
+  const handleDownloadBackup = () => {
+    try {
+      const dataStr = JSON.stringify(project, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const cleanName = project.name ? project.name.trim().replace(/[^a-zA-Z0-9\u0e00-\u0e7f_]/g, '_') : 'project';
+      const exportFileDefaultName = `clickdo-backup-${cleanName}-${new Date().toISOString().slice(0, 10)}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.href = url;
+      linkElement.download = exportFileDefaultName;
+      document.body.appendChild(linkElement);
+      linkElement.click();
+      document.body.removeChild(linkElement);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download project backup:', err);
+      alert('เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์สำรองโครงการ');
+    }
+  };
+
   const docsList = project.documents || [];
   const filteredDocs = filterType === 'All' ? docsList : docsList.filter((doc) => doc.type === filterType);
 
   return (
     <div className="space-y-6">
       {/* Visual Header card */}
-      <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 flex items-center justify-between">
+      <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Folder className="w-5 h-5 text-lime-400" />
           <div>
@@ -93,18 +114,31 @@ export default function DocumentsManager({ project, onUpdateDocuments }: Documen
           </div>
         </div>
 
-        <button
-          id="btn-add-document"
-          type="button"
-          onClick={() => {
-            resetForm();
-            setIsAdding(true);
-          }}
-          className="px-4 py-1.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-black font-extrabold text-xs rounded-lg flex items-center gap-1.5 transition-all shadow"
-        >
-          <Plus className="w-4 h-4" />
-          <span>เพิ่มเอกสาร</span>
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+          <button
+            id="btn-download-project-backup"
+            type="button"
+            onClick={handleDownloadBackup}
+            className="flex-1 sm:flex-initial px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-lime-400 hover:text-lime-300 font-extrabold text-xs rounded-lg flex items-center justify-center gap-1.5 border border-zinc-850 transition-all shadow-sm"
+            title="ดาวน์โหลดสำรองข้อมูลทั้งหมดของโครงการนี้เป็นไฟล์ JSON เพื่อกันข้อมูลสูญหาย"
+          >
+            <Download className="w-4 h-4" />
+            <span>ดาวน์โหลด JSON สำรอง</span>
+          </button>
+
+          <button
+            id="btn-add-document"
+            type="button"
+            onClick={() => {
+              resetForm();
+              setIsAdding(true);
+            }}
+            className="flex-1 sm:flex-initial px-4 py-1.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-black font-extrabold text-xs rounded-lg flex items-center justify-center gap-1.5 transition-all shadow"
+          >
+            <Plus className="w-4 h-4" />
+            <span>เพิ่มเอกสาร</span>
+          </button>
+        </div>
       </div>
 
       {/* Upload/Add Form */}
