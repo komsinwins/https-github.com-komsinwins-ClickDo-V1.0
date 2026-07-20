@@ -64,7 +64,7 @@ export default function CustomersManager({
     setPhone('');
     setEmail('');
     setAddress('');
-    setIndustry('พลังงานและสาธารณูปโภค');
+    setIndustry('อื่นๆ');
     setTaxId('');
     setNotes('');
     setIsFormOpen(true);
@@ -450,100 +450,111 @@ export default function CustomersManager({
                   placeholder="เช่น บริษัท อมตะ ยูทิลิตี้ส์ จำกัด (มหาชน)"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none"
+                  className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none font-sans"
                 />
               </div>
 
-              {/* Industry & Tax ID */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">ประเภทธุรกิจ / อุตสาหกรรม</label>
-                  <select
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none"
-                  >
-                    <option value="พลังงานและสาธารณูปโภค">พลังงานและสาธารณูปโภค</option>
-                    <option value="อาหารและเครื่องดื่ม">อาหารและเครื่องดื่ม</option>
-                    <option value="ยานยนต์ / ชิ้นส่วนอะไหล่">ยานยนต์ / ชิ้นส่วนอะไหล่</option>
-                    <option value="อสังหาริมทรัพย์และก่อสร้าง">อสังหาริมทรัพย์และก่อสร้าง</option>
-                    <option value="ค้าปลีก / บริการ">ค้าปลีก / บริการ</option>
-                    <option value="อุตสาหกรรมหนัก / ผลิตภัณฑ์โลหะ">อุตสาหกรรมหนัก / ผลิตภัณฑ์โลหะ</option>
-                    <option value="อื่นๆ">อื่นๆ</option>
-                  </select>
+              {!editingCustomer && (
+                <div className="bg-zinc-950/40 border border-zinc-850 p-3 rounded-lg text-[11px] text-zinc-400 flex items-start gap-2">
+                  <span className="text-lime-400 font-bold font-sans">💡 ทิป:</span>
+                  <span>คุณสามารถแก้ไข เพื่อกรอกประเภทธุรกิจ ผู้ติดต่อ เบอร์โทรศัพท์ และที่อยู่ผู้ว่าจ้างเพิ่มเติมได้หลังจากบันทึกรายชื่อบริษัทแล้ว</span>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">เลขประจำตัวผู้เสียภาษี (Tax ID)</label>
-                  <input
-                    type="text"
-                    maxLength={13}
-                    placeholder="เช่น 0107555000123"
-                    value={taxId}
-                    onChange={(e) => setTaxId(e.target.value)}
-                    className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none font-mono"
-                  />
-                </div>
-              </div>
+              )}
 
-              {/* Contact Person Name */}
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">ผู้ประสานงานหลัก (ชื่อ-นามสกุล / ตำแหน่ง)</label>
-                <input
-                  type="text"
-                  placeholder="เช่น คุณกฤษณะ วรพจน์ (ผู้จัดการฝ่ายจัดซื้อ)"
-                  value={contactPerson}
-                  onChange={(e) => setContactPerson(e.target.value)}
-                  className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none"
-                />
-              </div>
+              {editingCustomer && (
+                <>
+                  {/* Industry & Tax ID */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">ประเภทธุรกิจ / อุตสาหกรรม</label>
+                      <select
+                        value={industry}
+                        onChange={(e) => setIndustry(e.target.value)}
+                        className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none"
+                      >
+                        <option value="พลังงานและสาธารณูปโภค">พลังงานและสาธารณูปโภค</option>
+                        <option value="อาหารและเครื่องดื่ม">อาหารและเครื่องดื่ม</option>
+                        <option value="ยานยนต์ / ชิ้นส่วนอะไหล่">ยานยนต์ / ชิ้นส่วนอะไหล่</option>
+                        <option value="อสังหาริมทรัพย์และก่อสร้าง">อสังหาริมทรัพย์และก่อสร้าง</option>
+                        <option value="ค้าปลีก / บริการ">ค้าปลีก / บริการ</option>
+                        <option value="อุตสาหกรรมหนัก / ผลิตภัณฑ์โลหะ">อุตสาหกรรมหนัก / ผลิตภัณฑ์โลหะ</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">เลขประจำตัวผู้เสียภาษี (Tax ID)</label>
+                      <input
+                        type="text"
+                        maxLength={13}
+                        placeholder="เช่น 0107555000123"
+                        value={taxId}
+                        onChange={(e) => setTaxId(e.target.value)}
+                        className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none font-mono"
+                      />
+                    </div>
+                  </div>
 
-              {/* Phone & Email */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">เบอร์โทรศัพท์ติดต่อ</label>
-                  <input
-                    type="text"
-                    placeholder="เช่น 081-234-5678"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">อีเมลติดต่อ</label>
-                  <input
-                    type="email"
-                    placeholder="เช่น contact@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none font-mono"
-                  />
-                </div>
-              </div>
+                  {/* Contact Person Name */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">ผู้ประสานงานหลัก (ชื่อ-นามสกุล / ตำแหน่ง)</label>
+                    <input
+                      type="text"
+                      placeholder="เช่น คุณกฤษณะ วรพจน์ (ผู้จัดการฝ่ายจัดซื้อ)"
+                      value={contactPerson}
+                      onChange={(e) => setContactPerson(e.target.value)}
+                      className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none"
+                    />
+                  </div>
 
-              {/* Address */}
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">ที่อยู่ตามใบจดทะเบียนการค้า</label>
-                <textarea
-                  rows={2}
-                  placeholder="ระบุบ้านเลขที่ ถนน แขวง เขต จังหวัด รหัสไปรษณีย์..."
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none resize-none leading-relaxed"
-                />
-              </div>
+                  {/* Phone & Email */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">เบอร์โทรศัพท์ติดต่อ</label>
+                      <input
+                        type="text"
+                        placeholder="เช่น 081-234-5678"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">อีเมลติดต่อ</label>
+                      <input
+                        type="email"
+                        placeholder="เช่น contact@company.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none font-mono"
+                      />
+                    </div>
+                  </div>
 
-              {/* Notes */}
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">หมายเหตุเพิ่มเติม</label>
-                <textarea
-                  rows={2}
-                  placeholder="เช่น ประวัติงานติดตั้งเดิม หรือสถานะพิเศษ..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none resize-none leading-relaxed"
-                />
-              </div>
+                  {/* Address */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">ที่อยู่ตามใบจดทะเบียนการค้า</label>
+                    <textarea
+                      rows={2}
+                      placeholder="ระบุบ้านเลขที่ ถนน แขวง เขต จังหวัด รหัสไปรษณีย์..."
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none resize-none leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block">หมายเหตุเพิ่มเติม</label>
+                    <textarea
+                      rows={2}
+                      placeholder="เช่น ประวัติงานติดตั้งเดิม หรือสถานะพิเศษ..."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="w-full bg-zinc-950 text-white border border-zinc-750 focus:border-lime-500 rounded-lg p-2.5 text-xs focus:outline-none resize-none leading-relaxed"
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-3 border-t border-zinc-800">
