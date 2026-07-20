@@ -625,6 +625,7 @@ export default function App() {
       partnerCompany: projectData.partnerCompany || '',
       salesPerson: projectData.salesPerson || '',
       projectManager: projectData.projectManager || '',
+      poNumber: projectData.poNumber || '',
       contacts: [],
       contractor: {
         teamName: '',

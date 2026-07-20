@@ -54,6 +54,27 @@ export default function DashboardOverview({
     return diffDays;
   };
 
+  const getProjectDurationDays = (p: Project) => {
+    if (p.durationDays) return p.durationDays;
+    if (!p.startDate || !p.endDate) return 0;
+    const start = new Date(p.startDate).getTime();
+    const end = new Date(p.endDate).getTime();
+    if (isNaN(start) || isNaN(end)) return 0;
+    return Math.max(0, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+  };
+
+  const getProjectWorkingDays = (p: Project) => {
+    if (!p.scopesOfWork || p.scopesOfWork.length === 0) return 0;
+    return p.scopesOfWork.reduce((acc, item) => {
+      if (!item.startDate || !item.endDate) return acc;
+      const start = new Date(item.startDate).getTime();
+      const end = new Date(item.endDate).getTime();
+      if (isNaN(start) || isNaN(end)) return acc;
+      const duration = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      return acc + Math.max(0, duration);
+    }, 0);
+  };
+
   // Urgent alerts list: active projects with < 10 days left
   const urgentProjects = projects.filter((p) => {
     if (p.status !== 'Active') return false;
@@ -1071,6 +1092,11 @@ export default function DashboardOverview({
                           {new Date(p.endDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}
                         </span>
                       </div>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] mt-1 bg-slate-50 border border-slate-100 p-1.5 rounded-lg">
+                        <span className="text-slate-500 font-medium">ระยะเวลารวม: <b className="text-slate-800 font-bold">{getProjectDurationDays(p)} วัน</b></span>
+                        <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                        <span className="text-slate-500 font-medium">ระยะทำงานรวม: <b className="text-lime-700 font-bold">{getProjectWorkingDays(p)} วัน</b></span>
+                      </div>
                     </div>
                   </div>
 
@@ -1130,7 +1156,7 @@ export default function DashboardOverview({
                     <h3 className="font-extrabold text-slate-950 text-base group-hover:text-lime-600 transition-colors truncate">
                       {p.name}
                     </h3>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                       <span className="flex items-center gap-1">
                         <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         {p.installationSite}
@@ -1139,6 +1165,10 @@ export default function DashboardOverview({
                         <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         สัญญา: {p.startDate} - {p.endDate}
                       </span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                      <span>ระยะเวลารวม: <b className="text-slate-800 font-bold">{getProjectDurationDays(p)} วัน</b></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                      <span>ระยะทำงานรวม: <b className="text-lime-700 font-bold">{getProjectWorkingDays(p)} วัน</b></span>
                     </div>
                   </div>
 
@@ -1172,6 +1202,8 @@ export default function DashboardOverview({
                   <th className="px-5 py-3">ชื่อโครงการ</th>
                   <th className="px-5 py-3">สถานที่ติดตั้ง</th>
                   <th className="px-5 py-3 text-center">สถานะ</th>
+                  <th className="px-5 py-3 text-center">ระยะสัญญารวม</th>
+                  <th className="px-5 py-3 text-center">ระยะทำงานรวม</th>
                   <th className="px-5 py-3">ผู้จัดการโครงการ (PM)</th>
                   <th className="px-5 py-3">ผู้ว่าจ้าง (Owner)</th>
                   <th className="px-5 py-3 text-center">ความคืบหน้า</th>
@@ -1207,6 +1239,12 @@ export default function DashboardOverview({
                         >
                           {getStatusLabel(p.status)}
                         </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-center text-slate-700 font-semibold font-mono whitespace-nowrap">
+                        {getProjectDurationDays(p)} วัน
+                      </td>
+                      <td className="px-5 py-3.5 text-center text-lime-700 font-bold font-mono whitespace-nowrap">
+                        {getProjectWorkingDays(p)} วัน
                       </td>
                       <td className="px-5 py-3.5 text-slate-700">
                         {p.projectManager || '-'}
