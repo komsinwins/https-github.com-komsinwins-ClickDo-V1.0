@@ -22,7 +22,10 @@ import {
   Check, 
   ChevronRight,
   Sparkles,
-  Info
+  Info,
+  LayoutGrid,
+  List,
+  Layers
 } from 'lucide-react';
 
 interface CustomersManagerProps {
@@ -45,6 +48,7 @@ export default function CustomersManager({
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedCustomerDetail, setSelectedCustomerDetail] = useState<Customer | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'industry'>('grid');
 
   // Form Fields State
   const [companyName, setCompanyName] = useState('');
@@ -209,12 +213,57 @@ export default function CustomersManager({
             </div>
           </div>
 
-          {/* Customers Cards / Grid */}
+          {/* View Mode Switcher */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-zinc-900/40 border border-zinc-800/80 px-4 py-2.5 rounded-xl gap-3">
+            <span className="text-zinc-400 text-xs font-medium">
+              แสดงผลลัพธ์: <strong className="text-lime-400 font-mono font-bold text-sm">{filteredCustomers.length}</strong> บริษัท
+            </span>
+            <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'grid' 
+                    ? 'bg-lime-500 text-black' 
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>มุมมองการ์ด</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'table' 
+                    ? 'bg-lime-500 text-black' 
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>มุมมองตาราง</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('industry')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'industry' 
+                    ? 'bg-lime-500 text-black' 
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>จัดกลุ่มอุตสาหกรรม</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Customers Content based on View Mode */}
           {filteredCustomers.length === 0 ? (
             <div className="bg-zinc-900/40 border border-zinc-900 rounded-xl p-12 text-center">
-              <p className="text-sm text-zinc-500">ไม่พบข้อมูลลูกค้าตามเงื่อนไขค้นหา</p>
+              <p className="text-sm text-zinc-500 font-sans">ไม่พบข้อมูลลูกค้าตามเงื่อนไขค้นหา</p>
             </div>
-          ) : (
+          ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredCustomers.map((cust) => {
                 const customerProjects = getCustomerProjects(cust.companyName);
@@ -265,14 +314,14 @@ export default function CustomersManager({
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleOpenEditForm(cust)}
-                          className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
+                          className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors cursor-pointer"
                           title="แก้ไขข้อมูลลูกค้า"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(cust.id, cust.companyName)}
-                          className="p-1 text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 rounded transition-colors"
+                          className="p-1 text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 rounded transition-colors cursor-pointer"
                           title="ลบลูกค้า"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -282,6 +331,152 @@ export default function CustomersManager({
                   </div>
                 );
               })}
+            </div>
+          ) : viewMode === 'table' ? (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-zinc-950 text-[10px] font-black text-zinc-400 uppercase tracking-wider border-b border-zinc-800">
+                      <th className="p-3.5">ชื่อบริษัทลูกค้า</th>
+                      <th className="p-3.5">ประเภทธุรกิจ</th>
+                      <th className="p-3.5">ผู้ติดต่อ / โทรศัพท์</th>
+                      <th className="p-3.5 text-center">โครงการ</th>
+                      <th className="p-3.5 text-right">การจัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-850">
+                    {filteredCustomers.map((cust) => {
+                      const customerProjects = getCustomerProjects(cust.companyName);
+                      const isSelected = selectedCustomerDetail?.id === cust.id;
+                      return (
+                        <tr 
+                          key={cust.id}
+                          onClick={() => setSelectedCustomerDetail(cust)}
+                          className={`hover:bg-zinc-850/40 cursor-pointer transition-colors text-xs ${isSelected ? 'bg-lime-500/5 text-white font-medium' : 'text-zinc-300'}`}
+                        >
+                          <td className="p-3.5">
+                            <div className="font-bold text-white hover:text-lime-400 transition-colors">{cust.companyName}</div>
+                            {cust.taxId && <div className="text-[10px] text-zinc-500 font-mono mt-0.5">Tax ID: {cust.taxId}</div>}
+                          </td>
+                          <td className="p-3.5">
+                            <span className="text-[10px] font-bold text-lime-400 bg-lime-400/10 border border-lime-500/20 px-2 py-0.5 rounded">
+                              {cust.industry}
+                            </span>
+                          </td>
+                          <td className="p-3.5 space-y-0.5">
+                            <div className="flex items-center gap-1.5 text-zinc-300">
+                              <User className="w-3 h-3 text-zinc-500" />
+                              <span>{cust.contactPerson || '-'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-zinc-400 font-mono text-[11px]">
+                              <Phone className="w-3 h-3 text-zinc-500" />
+                              <span>{cust.phone || '-'}</span>
+                            </div>
+                          </td>
+                          <td className="p-3.5 text-center font-bold text-sm text-white font-mono">
+                            {customerProjects.length}
+                          </td>
+                          <td className="p-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditForm(cust)}
+                                className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors cursor-pointer"
+                                title="แก้ไขข้อมูลลูกค้า"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(cust.id, cust.companyName)}
+                                className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 rounded transition-colors cursor-pointer"
+                                title="ลบลูกค้า"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {Array.from(new Set(filteredCustomers.map(c => c.industry)))
+                .filter(Boolean)
+                .map((ind) => {
+                  const industryCusts = filteredCustomers.filter(c => c.industry === ind);
+                  return (
+                    <div key={ind} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow">
+                      {/* Industry Header Banner */}
+                      <div className="bg-zinc-950 px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-lime-400" />
+                          <h4 className="text-xs font-black text-white uppercase tracking-wider">{ind}</h4>
+                        </div>
+                        <span className="text-[10px] font-bold text-zinc-400 bg-zinc-850 px-2 py-0.5 rounded-full font-mono">
+                          {industryCusts.length} บริษัท
+                        </span>
+                      </div>
+
+                      {/* Customer list in this industry */}
+                      <div className="divide-y divide-zinc-850">
+                        {industryCusts.map((cust) => {
+                          const customerProjects = getCustomerProjects(cust.companyName);
+                          const isSelected = selectedCustomerDetail?.id === cust.id;
+                          return (
+                            <div
+                              key={cust.id}
+                              onClick={() => setSelectedCustomerDetail(cust)}
+                              className={`p-3.5 cursor-pointer transition-all flex items-center justify-between gap-4 hover:bg-zinc-850/30 ${
+                                isSelected ? 'bg-lime-500/5' : ''
+                              }`}
+                            >
+                              <div className="space-y-1 min-w-0 flex-1">
+                                <h5 className="text-xs font-bold text-white truncate hover:text-lime-400 transition-colors">
+                                  {cust.companyName}
+                                </h5>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-400">
+                                  <span className="flex items-center gap-1.5 min-w-0">
+                                    <User className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+                                    <span className="truncate">{cust.contactPerson || '-'}</span>
+                                  </span>
+                                  <span className="flex items-center gap-1.5 font-mono">
+                                    <Phone className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+                                    <span>{cust.phone || '-'}</span>
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <span className="text-[10px] text-zinc-500 bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800 font-mono">
+                                  {customerProjects.length} โครงการ
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleOpenEditForm(cust)}
+                                    className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors cursor-pointer"
+                                    title="แก้ไขข้อมูลลูกค้า"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(cust.id, cust.companyName)}
+                                    className="p-1 text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 rounded transition-colors cursor-pointer"
+                                    title="ลบลูกค้า"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>
