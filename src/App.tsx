@@ -1097,6 +1097,7 @@ export default function App() {
               onUpdateProjectManagers={handleUpdateProjectManagers}
               projectStatuses={projectStatuses}
               onUpdateProjectStatuses={handleUpdateProjectStatuses}
+              customers={customers}
             />
           </div>
         )}
@@ -1113,6 +1114,7 @@ export default function App() {
               onUpdateProjectManagers={handleUpdateProjectManagers}
               projectStatuses={projectStatuses}
               onUpdateProjectStatuses={handleUpdateProjectStatuses}
+              customers={customers}
             />
           </div>
         )}
