@@ -111,6 +111,7 @@ export interface Project {
   partnerCompany: string;
   salesPerson: string;
   projectManager: string;
+  poNumber?: string;
   contacts: Contact[];
   contractor: ContractorInfo;
   scopesOfWork: SOWItem[];

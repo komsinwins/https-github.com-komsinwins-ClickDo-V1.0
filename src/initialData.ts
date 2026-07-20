@@ -51,6 +51,7 @@ export const INITIAL_PROJECTS: Project[] = [
     partnerCompany: 'บริษัท นีโอ เอนเนอร์ยี่ ซิสเต็มส์ จำกัด',
     salesPerson: 'นพพล รักดี',
     projectManager: 'ธีรเดช เลิศศิริกุล',
+    poNumber: 'PO-2026-0089',
     contacts: [
       {
         id: 'contact-1',

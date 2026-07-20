@@ -847,6 +847,11 @@ export default function App() {
                         <span className="text-zinc-500 text-xs uppercase font-bold tracking-wider block">พนักงานขายผู้ดูแลสัญญา (Sales)</span>
                         <p className="text-sm text-zinc-200 mt-1">{selectedProject.salesPerson}</p>
                       </div>
+
+                      <div>
+                        <span className="text-zinc-500 text-xs uppercase font-bold tracking-wider block">หมายเลขเอกสาร PO (Purchase Order)</span>
+                        <p className="text-sm font-bold text-lime-400 mt-1">{selectedProject.poNumber || 'ยังไม่ระบุหมายเลข PO'}</p>
+                      </div>
                     </div>
 
                     <div className="space-y-4">

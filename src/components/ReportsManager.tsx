@@ -248,6 +248,7 @@ export default function ReportsManager({ project, onUpdateReports }: ReportsMana
           
           <div class="meta-grid">
             <div class="meta-item"><span class="meta-label">ชื่อโครงการ:</span> ${project.name}</div>
+            <div class="meta-item"><span class="meta-label">หมายเลขเอกสาร PO:</span> ${project.poNumber || 'ไม่ระบุ'}</div>
             <div class="meta-item"><span class="meta-label">สถานที่ติดตั้ง:</span> ${project.installationSite}</div>
             <div class="meta-item"><span class="meta-label">วันที่จัดทำรายงาน:</span> ${report.date}</div>
             ${report.weekRange ? `<div class="meta-item"><span class="meta-label">ช่วงเวลาสัปดาห์:</span> ${report.weekRange}</div>` : ''}
