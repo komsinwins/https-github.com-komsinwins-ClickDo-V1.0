@@ -8,11 +8,15 @@ export interface Contact {
   firstName: string;
   lastName: string;
   position: string;
+  phone?: string;
+  email?: string;
+  lineId?: string;
 }
 
 export interface Worker {
   id: string;
   name: string;
+  position?: string;
 }
 
 export interface PaymentMilestone {
@@ -26,6 +30,7 @@ export interface PaymentMilestone {
 export interface ContractorInfo {
   teamName: string;
   foremanName: string;
+  phone?: string;
   workers: Worker[];
   totalWage: number;
   installments: PaymentMilestone[];
@@ -119,6 +124,23 @@ export interface Project {
   diagrams: Diagram[];
   reports: ReportLog[];
   documents: ProjectDocument[];
+  closureReport?: ClosureReport;
+}
+
+export interface ClosurePhoto {
+  id: string;
+  url: string;
+  title: string;
+  description: string;
+}
+
+export interface ClosureReport {
+  steps: string;
+  summary: string;
+  showSchedule: boolean;
+  photos: ClosurePhoto[];
+  problemsAndSolutions?: string;
+  remarks?: string;
 }
 
 export interface Customer {

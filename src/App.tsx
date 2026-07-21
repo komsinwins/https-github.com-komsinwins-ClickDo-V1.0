@@ -37,6 +37,8 @@ import ReportsManager from './components/ReportsManager';
 import DocumentsManager from './components/DocumentsManager';
 import SOWCalendar from './components/SOWCalendar';
 import CustomersManager from './components/CustomersManager';
+import ProjectScheduleMS from './components/ProjectScheduleMS';
+import ProjectClosureReport from './components/ProjectClosureReport';
 
 
 import {
@@ -72,7 +74,9 @@ import {
   DownloadCloud,
   Check,
   Download,
-  Upload
+  Upload,
+  FileSpreadsheet,
+  FileCheck
 } from 'lucide-react';
 
 export default function App() {
@@ -103,7 +107,7 @@ export default function App() {
   const [view, setView] = useState<'dashboard' | 'create_project' | 'edit_project' | 'project_workspace' | 'customers'>('dashboard');
 
   // Subtab for project workspace
-  const [workspaceTab, setWorkspaceTab] = useState<'details' | 'sow' | 'calendar' | 'diagrams' | 'contacts' | 'contractor' | 'orders' | 'reports' | 'documents'>('details');
+  const [workspaceTab, setWorkspaceTab] = useState<'details' | 'sow' | 'ms_project' | 'calendar' | 'diagrams' | 'contacts' | 'contractor' | 'orders' | 'reports' | 'documents' | 'closure_report'>('details');
 
   // Diagram drawer states
   const [activeCanvasDiagram, setActiveCanvasDiagram] = useState<Diagram | null>(null);
@@ -769,6 +773,17 @@ export default function App() {
     saveProjects(updated);
   };
 
+  const updateWorkspaceClosureReport = (closureReport: any) => {
+    if (!selectedProject) return;
+    const updated = projects.map((p) => {
+      if (p.id === selectedProject.id) {
+        return { ...p, closureReport };
+      }
+      return p;
+    });
+    saveProjects(updated);
+  };
+
   // Handle saving Drawn Diagram Canvas
   const handleSaveDrawnDiagram = (dataUrl: string) => {
     if (!selectedProject) return;
@@ -900,7 +915,8 @@ export default function App() {
 
               {[
                 { key: 'details', label: 'รายละเอียดโครงการ', icon: ClipboardList },
-                { key: 'sow', label: 'Scope of Work / แผนงาน', icon: Layers },
+                { key: 'sow', label: 'การจัดการขอบข่ายงาน (SOW)', icon: Layers },
+                { key: 'ms_project', label: 'แผนงาน (MS Project Style)', icon: FileSpreadsheet },
                 { key: 'calendar', label: 'ปฏิทินแผนงาน / เดดไลน์', icon: Calendar },
                 { key: 'diagrams', label: 'ภาพ Diagram / แบบติดตั้ง', icon: FileImage },
                 { key: 'contacts', label: 'ผู้ติดต่อ', icon: Users },
@@ -908,6 +924,7 @@ export default function App() {
                 { key: 'orders', label: 'วัสดุ / อุปกรณ์', icon: ShoppingBag },
                 { key: 'reports', label: 'รายงานรายวัน/สัปดาห์', icon: FileText },
                 { key: 'documents', label: 'แฟ้มเอกสารหลัก', icon: FolderDot },
+                { key: 'closure_report', label: 'รายงานสรุปโครงการ', icon: FileCheck },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = view === 'project_workspace' && workspaceTab === tab.key;
@@ -1397,6 +1414,21 @@ export default function App() {
                 <ScopeOfWorkManager
                   project={selectedProject}
                   onUpdateSOW={updateWorkspaceSOW}
+                />
+              )}
+
+              {workspaceTab === 'ms_project' && (
+                <ProjectScheduleMS
+                  project={selectedProject}
+                  onUpdateSOW={updateWorkspaceSOW}
+                />
+              )}
+
+              {workspaceTab === 'closure_report' && (
+                <ProjectClosureReport
+                  project={selectedProject}
+                  customers={customers}
+                  onUpdateClosureReport={updateWorkspaceClosureReport}
                 />
               )}
 

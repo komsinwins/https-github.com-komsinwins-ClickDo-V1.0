@@ -23,7 +23,41 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
 
   const [teamName, setTeamName] = useState(contractor.teamName || '');
   const [foremanName, setForemanName] = useState(contractor.foremanName || '');
+  const [phone, setPhone] = useState(contractor.phone || '');
   const [totalWage, setTotalWage] = useState(contractor.totalWage || 0);
+
+  // Load and save custom worker positions
+  const [workerPositions, setWorkerPositions] = useState<string[]>(() => {
+    const saved = localStorage.getItem('worker_positions');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return [
+      'โฟร์แมน (Foreman)',
+      'ช่างเทคนิค (Technician)',
+      'ช่างไฟฟ้า (Electrician)',
+      'ช่างเชื่อม (Welder)',
+      'คนงานทั่วไป (Laborer)',
+      'ผู้ช่วยช่าง (Helper)',
+      'เจ้าหน้าที่ความปลอดภัย (Safety)'
+    ];
+  });
+
+  const [selectedWorkerPosition, setSelectedWorkerPosition] = useState(workerPositions[0] || '');
+  const [newPositionText, setNewPositionText] = useState('');
+
+  React.useEffect(() => {
+    localStorage.setItem('worker_positions', JSON.stringify(workerPositions));
+  }, [workerPositions]);
+
+  // Sync selected position when list changes
+  React.useEffect(() => {
+    if (workerPositions.length > 0 && !workerPositions.includes(selectedWorkerPosition)) {
+      setSelectedWorkerPosition(workerPositions[0]);
+    }
+  }, [workerPositions, selectedWorkerPosition]);
 
   // New item states
   const [newWorkerName, setNewWorkerName] = useState('');
@@ -35,6 +69,7 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
     if (project.contractor) {
       setTeamName(project.contractor.teamName || '');
       setForemanName(project.contractor.foremanName || '');
+      setPhone(project.contractor.phone || '');
       setTotalWage(project.contractor.totalWage || 0);
     }
   }, [project]);
@@ -45,7 +80,45 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
       ...contractor,
       teamName,
       foremanName,
+      phone,
       totalWage,
+    });
+  };
+
+  // Add position option
+  const handleAddPositionOption = () => {
+    const cleaned = newPositionText.trim();
+    if (!cleaned) return;
+    if (workerPositions.includes(cleaned)) {
+      alert('ตำแหน่งนี้มีอยู่ในรายการแล้ว');
+      return;
+    }
+    const updated = [...workerPositions, cleaned];
+    setWorkerPositions(updated);
+    setSelectedWorkerPosition(cleaned);
+    setNewPositionText('');
+  };
+
+  // Remove position option
+  const handleRemovePositionOption = (posToRemove: string) => {
+    if (confirm(`คุณต้องการลบตำแหน่ง "${posToRemove}" ออกจากตัวเลือกใช่หรือไม่?`)) {
+      const updated = workerPositions.filter(p => p !== posToRemove);
+      setWorkerPositions(updated);
+    }
+  };
+
+  // Update worker position on the fly
+  const handleUpdateWorkerPosition = (workerId: string, position: string) => {
+    const updatedWorkers = (contractor.workers || []).map(w => {
+      if (w.id === workerId) {
+        return { ...w, position: position || undefined };
+      }
+      return w;
+    });
+
+    onUpdateContractor({
+      ...contractor,
+      workers: updatedWorkers,
     });
   };
 
@@ -57,6 +130,7 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
     const newWorker: Worker = {
       id: `worker-${Date.now()}`,
       name: newWorkerName.trim(),
+      position: selectedWorkerPosition || undefined,
     };
 
     onUpdateContractor({
@@ -191,6 +265,21 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
               </div>
 
               <div>
+                <label htmlFor="ct-phone" className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">
+                  เบอร์โทรติดต่อ
+                </label>
+                <input
+                  id="ct-phone"
+                  type="text"
+                  placeholder="เช่น 081-234-5678"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  onBlur={handleSaveInfo}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-sm focus:outline-none focus:border-lime-500 transition-all font-medium"
+                />
+              </div>
+
+              <div>
                 <label htmlFor="ct-wage" className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">
                   มูลค่าวงเงินจัดจ้างเหมา (บาท)
                 </label>
@@ -214,50 +303,136 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
 
           {/* Workers list */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
-            <h4 className="font-bold text-white text-sm border-b border-zinc-800 pb-2">รายชื่อช่างปฏิบัติงานหน้างาน ({contractor.workers?.length || 0})</h4>
+            <h4 className="font-bold text-white text-sm border-b border-zinc-800 pb-2">
+              รายชื่อผู้ปฏิบัติงาน ({contractor.workers?.length || 0})
+            </h4>
 
-            <form onSubmit={handleAddWorker} className="flex gap-2">
-              <input
-                id="input-new-worker"
-                type="text"
-                placeholder="ระบุชื่อพนักงานปฏิบัติงานเพิ่ม"
-                value={newWorkerName}
-                onChange={(e) => setNewWorkerName(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-lime-500 transition-all"
-              />
-              <button
-                id="btn-add-worker"
-                type="submit"
-                className="px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-lime-400 hover:text-lime-350 font-bold text-xs rounded-lg flex items-center shrink-0 transition-all"
-              >
-                เพิ่ม
-              </button>
+            <form onSubmit={handleAddWorker} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="input-new-worker" className="block text-[11px] text-zinc-400 font-semibold mb-1 uppercase">
+                    ชื่อ-นามสกุล ผู้ปฏิบัติงาน
+                  </label>
+                  <input
+                    id="input-new-worker"
+                    type="text"
+                    placeholder="เช่น นายสมชาย ขยันงาน"
+                    value={newWorkerName}
+                    onChange={(e) => setNewWorkerName(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-lime-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="select-worker-position" className="block text-[11px] text-zinc-400 font-semibold mb-1 uppercase">
+                    ตำแหน่งในโครงการ
+                  </label>
+                  <div className="flex gap-1.5">
+                    <select
+                      id="select-worker-position"
+                      value={selectedWorkerPosition}
+                      onChange={(e) => setSelectedWorkerPosition(e.target.value)}
+                      className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-lime-500 transition-all font-medium"
+                    >
+                      {workerPositions.map((pos) => (
+                        <option key={pos} value={pos}>
+                          {pos}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedWorkerPosition && (
+                      <button
+                        id="btn-delete-pos-option"
+                        type="button"
+                        onClick={() => handleRemovePositionOption(selectedWorkerPosition)}
+                        className="p-1.5 bg-zinc-950 border border-zinc-800 hover:border-rose-500/50 hover:bg-rose-500/10 text-zinc-500 hover:text-rose-400 rounded-lg transition-all"
+                        title="ลบตัวเลือกตำแหน่งนี้ออกจากระบบ"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Subform to add a new custom option */}
+              <div className="bg-zinc-950/65 border border-zinc-850 rounded-xl p-3 flex flex-col sm:flex-row gap-2 items-end">
+                <div className="flex-1">
+                  <label htmlFor="input-new-pos" className="block text-[9.5px] text-zinc-400 font-bold mb-1 uppercase tracking-wider">
+                    เพิ่มตัวเลือกตำแหน่งใหม่ในโครงการ
+                  </label>
+                  <input
+                    id="input-new-pos"
+                    type="text"
+                    placeholder="ระบุชื่อตำแหน่งใหม่ เช่น ช่างซ่อมบำรุง"
+                    value={newPositionText}
+                    onChange={(e) => setNewPositionText(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-lime-500"
+                  />
+                </div>
+                <button
+                  id="btn-add-pos-option"
+                  type="button"
+                  onClick={handleAddPositionOption}
+                  className="px-3 py-1.5 bg-zinc-850 hover:bg-zinc-800 border border-zinc-750 hover:border-zinc-700 text-lime-400 hover:text-lime-350 font-bold text-xs rounded-lg transition-all whitespace-nowrap h-[30px] flex items-center gap-1 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>เพิ่มตำแหน่ง</span>
+                </button>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  id="btn-add-worker"
+                  type="submit"
+                  className="px-4 py-2 bg-lime-500 hover:bg-lime-400 text-black font-extrabold text-xs rounded-lg flex items-center gap-1 transition-all shadow-md shadow-lime-500/10 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>เพิ่มรายชื่อผู้ปฏิบัติงาน</span>
+                </button>
+              </div>
             </form>
 
-            <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
               {(!contractor.workers || contractor.workers.length === 0) ? (
                 <p className="text-center py-4 text-zinc-600 text-[11px] italic font-mono">
-                  ยังไม่ได้ระบุพนักงานปฏิบัติงานหน้างาน
+                  ยังไม่ได้ระบุรายชื่อผู้ปฏิบัติงาน
                 </p>
               ) : (
                 contractor.workers.map((w, index) => (
                   <div
                     key={w.id}
-                    className="flex items-center justify-between bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-1.5 text-xs font-medium"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2 text-xs font-medium"
                   >
                     <div className="flex items-center gap-2 text-zinc-300">
                       <span className="text-zinc-600 text-[10px] font-mono">#{index + 1}</span>
-                      <span>{w.name}</span>
+                      <span className="font-bold">{w.name}</span>
                     </div>
-                    <button
-                      id={`btn-remove-worker-${w.id}`}
-                      type="button"
-                      onClick={() => handleRemoveWorker(w.id)}
-                      className="p-1 text-zinc-500 hover:text-rose-400 transition-all"
-                      title="ลบรายชื่อ"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <span className="text-[10px] text-zinc-500">ตำแหน่ง:</span>
+                      <select
+                        value={w.position || ''}
+                        onChange={(e) => handleUpdateWorkerPosition(w.id, e.target.value)}
+                        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-lime-500 font-medium"
+                      >
+                        <option value="">-- ไม่ระบุตำแหน่ง --</option>
+                        {workerPositions.map((pos) => (
+                          <option key={pos} value={pos}>
+                            {pos}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        id={`btn-remove-worker-${w.id}`}
+                        type="button"
+                        onClick={() => handleRemoveWorker(w.id)}
+                        className="p-1 text-zinc-500 hover:text-rose-400 hover:bg-zinc-900 border border-transparent hover:border-zinc-850 rounded transition-all"
+                        title="ลบรายชื่อผู้ปฏิบัติงาน"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

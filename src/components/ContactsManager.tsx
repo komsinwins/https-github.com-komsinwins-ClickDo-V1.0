@@ -27,6 +27,9 @@ export default function ContactsManager({
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [selectedPosition, setSelectedPosition] = useState(positions[0] || '');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [lineId, setLineId] = useState('');
 
   // Add Contact
   const handleAddContact = (e: React.FormEvent) => {
@@ -38,11 +41,17 @@ export default function ContactsManager({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       position: selectedPosition,
+      phone: phone.trim() || undefined,
+      email: email.trim() || undefined,
+      lineId: lineId.trim() || undefined,
     };
 
     onUpdateContacts([...project.contacts, newContact]);
     setFirstName('');
     setLastName('');
+    setPhone('');
+    setEmail('');
+    setLineId('');
   };
 
   // Delete Contact
@@ -228,6 +237,48 @@ export default function ContactsManager({
                 </div>
               </div>
 
+              <div>
+                <label htmlFor="ct-phone" className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">
+                  เบอร์โทรติดต่อ
+                </label>
+                <input
+                  id="ct-phone"
+                  type="text"
+                  placeholder="เช่น 089-123-4567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="ct-email" className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">
+                  Email
+                </label>
+                <input
+                  id="ct-email"
+                  type="email"
+                  placeholder="เช่น contact@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="ct-lineId" className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">
+                  Line ID
+                </label>
+                <input
+                  id="ct-lineId"
+                  type="text"
+                  placeholder="เช่น line_id_123"
+                  value={lineId}
+                  onChange={(e) => setLineId(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500"
+                />
+              </div>
+
               <button
                 id="btn-add-contact-submit"
                 type="submit"
@@ -244,7 +295,7 @@ export default function ContactsManager({
         <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
           <h4 className="font-bold text-white text-sm border-b border-zinc-800 pb-2 flex items-center gap-2">
             <Briefcase className="w-4 h-4 text-lime-400" />
-            <span>รายชื่อคณะผู้ติดต่อโครงการทั้งหมด ({project.contacts?.length || 0} คน)</span>
+            <span>รายชื่อผู้ติดต่อโครงการทั้งหมด ({project.contacts?.length || 0} คน)</span>
           </h4>
 
           <div className="overflow-x-auto">
@@ -253,14 +304,17 @@ export default function ContactsManager({
                 <tr className="border-b border-zinc-800 text-zinc-500 font-semibold uppercase">
                   <th className="py-2.5 px-3">ลำดับ</th>
                   <th className="py-2.5 px-3">ชื่อ - นามสกุล</th>
-                  <th className="py-2.5 px-3">ตำแหน่งในโครงการ</th>
+                  <th className="py-2.5 px-3">ตำแหน่ง</th>
+                  <th className="py-2.5 px-3">เบอร์โทรติดต่อ</th>
+                  <th className="py-2.5 px-3">Email</th>
+                  <th className="py-2.5 px-3">Line ID</th>
                   <th className="py-2.5 px-3 text-right">ดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
                 {(!project.contacts || project.contacts.length === 0) ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-8 text-zinc-600 italic">
+                    <td colSpan={7} className="text-center py-8 text-zinc-600 italic">
                       ยังไม่ได้ระบุผู้ติดต่อใดๆ ในโครงการนี้
                     </td>
                   </tr>
@@ -272,10 +326,13 @@ export default function ContactsManager({
                         {c.firstName} {c.lastName}
                       </td>
                       <td className="py-2.5 px-3">
-                        <span className="px-2.5 py-0.5 bg-zinc-950 text-lime-400 border border-zinc-800 rounded-full font-semibold text-[10px]">
+                        <span className="px-2.5 py-0.5 bg-zinc-950 text-lime-400 border border-zinc-800 rounded-full font-semibold text-[10px] whitespace-nowrap">
                           {c.position}
                         </span>
                       </td>
+                      <td className="py-2.5 px-3 font-mono text-zinc-300">{c.phone || '-'}</td>
+                      <td className="py-2.5 px-3 text-zinc-300 truncate max-w-[120px]" title={c.email}>{c.email || '-'}</td>
+                      <td className="py-2.5 px-3 font-mono text-zinc-300">{c.lineId || '-'}</td>
                       <td className="py-2.5 px-3 text-right">
                         <button
                           id={`btn-delete-contact-${c.id}`}
