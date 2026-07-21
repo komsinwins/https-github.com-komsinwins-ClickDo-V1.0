@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Project, ContractorInfo, Worker, PaymentMilestone } from '../types';
-import { Users, User, Plus, Trash2, CheckCircle, AlertCircle, Coins, CreditCard, DollarSign } from 'lucide-react';
+import { Users, User, Plus, Trash2, CheckCircle, AlertCircle, Coins, CreditCard, DollarSign, Printer } from 'lucide-react';
 
 interface ContractorManagerProps {
   project: Project;
@@ -105,6 +105,244 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
       const updated = workerPositions.filter(p => p !== posToRemove);
       setWorkerPositions(updated);
     }
+  };
+
+  const handlePrintWorkers = () => {
+    // Create a temporary hidden iframe for printing to avoid popup blockers
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (!iframeDoc) return;
+
+    // Build beautiful, clean printable SOW/Contractor Workers Report
+    const workerRows = (contractor.workers || []).map((w, index) => `
+      <tr style="border-bottom: 1px solid #cbd5e1; height: 42px;">
+        <td style="padding: 10px 12px; text-align: center; font-family: monospace; font-size: 13px; color: #475569; border-bottom: 1px solid #cbd5e1;">${index + 1}</td>
+        <td style="padding: 10px 12px; font-weight: 600; font-size: 13px; color: #0f172a; border-bottom: 1px solid #cbd5e1;">${w.name}</td>
+        <td style="padding: 10px 12px; font-size: 13px; color: #334155; border-bottom: 1px solid #cbd5e1; font-weight: 500;">${w.position || '-- ไม่ได้ระบุตำแหน่ง --'}</td>
+        <td style="padding: 10px 12px; text-align: center; font-size: 12px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #cbd5e1;">( ลงชื่อผู้ปฏิบัติงาน )</td>
+      </tr>
+    `).join('');
+
+    const formattedDate = new Date().toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>รายชื่อผู้ปฏิบัติงานประจำโครงการ</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+          body {
+            font-family: 'Sarabun', sans-serif;
+            color: #1e293b;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 40px;
+            line-height: 1.5;
+          }
+          .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 3px double #94a3b8;
+            padding-bottom: 18px;
+            margin-bottom: 24px;
+          }
+          .title-area h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            color: #0f172a;
+            letter-spacing: -0.2px;
+          }
+          .title-area p {
+            font-size: 12px;
+            color: #64748b;
+            margin: 0;
+            font-weight: 500;
+          }
+          .logo-area {
+            text-align: right;
+            font-size: 12px;
+            color: #475569;
+            line-height: 1.5;
+          }
+          .project-meta {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 28px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            font-size: 13.5px;
+          }
+          .meta-item {
+            margin-bottom: 2px;
+          }
+          .meta-label {
+            font-weight: bold;
+            color: #475569;
+            display: inline-block;
+            width: 150px;
+          }
+          .meta-value {
+            color: #0f172a;
+            font-weight: 500;
+          }
+          .table-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 14px;
+            color: #0f172a;
+            border-left: 5px solid #84cc16;
+            padding-left: 10px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 50px;
+          }
+          th {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-weight: 700;
+            font-size: 13px;
+            text-align: left;
+            padding: 12px 12px;
+            border-top: 1px solid #94a3b8;
+            border-bottom: 2px solid #94a3b8;
+          }
+          .signature-area {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 60px;
+            page-break-inside: avoid;
+          }
+          .sig-box {
+            width: 280px;
+            text-align: center;
+            font-size: 13px;
+          }
+          .sig-line {
+            border-bottom: 1px dashed #64748b;
+            margin-bottom: 10px;
+            height: 45px;
+          }
+          .footer {
+            text-align: center;
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 80px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 14px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header-container">
+          <div class="title-area">
+            <h1>เอกสารรายชื่อผู้ปฏิบัติงานประจำโครงการ</h1>
+            <p>Project Worker Registry & Area Access Registry</p>
+          </div>
+          <div class="logo-area">
+            <b>วันที่ออกเอกสาร:</b> ${formattedDate}<br>
+            <b>รหัสโครงการ:</b> ${project.id || '--'}
+          </div>
+        </div>
+
+        <div class="project-meta">
+          <div class="meta-item">
+            <span class="meta-label">ชื่อโครงการ:</span>
+            <span class="meta-value" style="font-weight: 700; color: #1e3a8a;">${project.name}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">ทีมผู้รับเหมาหลัก:</span>
+            <span class="meta-value">${contractor.teamName || '-- ยังไม่ระบุทีมผู้รับเหมา --'}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">ผู้ควบคุมโครงการ (PM):</span>
+            <span class="meta-value">${project.projectManager || '--'}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">หัวหน้าผู้แทนผู้รับเหมา (Foreman):</span>
+            <span class="meta-value">${contractor.foremanName || '--'} (${contractor.phone || '--'})</span>
+          </div>
+          <div class="meta-item" style="grid-column: span 2;">
+            <span class="meta-label">สถานที่ติดตั้ง/บริเวณ:</span>
+            <span class="meta-value" style="color: #0f172a;">${project.installationSite || '--'}</span>
+          </div>
+        </div>
+
+        <div class="table-title">บัญชีรายชื่อผู้เข้าปฏิบัติงานในพื้นที่ (จำนวนทั้งหมด ${contractor.workers?.length || 0} คน)</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 70px; text-align: center;">ลำดับที่</th>
+              <th>ชื่อ-นามสกุล ผู้ปฏิบัติงาน</th>
+              <th style="width: 250px;">ตำแหน่งในโครงการ</th>
+              <th style="width: 220px; text-align: center;">ลงชื่อเข้าปฏิบัติงาน</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${workerRows || '<tr><td colspan="4" style="text-align: center; padding: 24px; color: #64748b; font-style: italic;">ไม่มีรายชื่อผู้ปฏิบัติงานในระบบ</td></tr>'}
+          </tbody>
+        </table>
+
+        <div class="signature-area">
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            <b>ลงชื่อ............................................................</b>
+            <p style="margin: 6px 0 0 0; font-weight: 700;">( ${contractor.foremanName || '................................................'} )</p>
+            <p style="margin: 2px 0 0 0; color: #475569; font-size: 11.5px;">หัวหน้าทีมตัวแทนผู้รับเหมา</p>
+          </div>
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            <b>ลงชื่อ............................................................</b>
+            <p style="margin: 6px 0 0 0; font-weight: 700;">( ${project.projectManager || '................................................'} )</p>
+            <p style="margin: 2px 0 0 0; color: #475569; font-size: 11.5px;">ผู้จัดการควบคุมโครงการ (Project Manager)</p>
+          </div>
+        </div>
+
+        <div class="footer">
+          เอกสารนี้ผลิตขึ้นโดยระบบบริหารจัดการโครงการอัตโนมัติ เพื่อใช้เป็นหลักฐานการเข้าพื้นที่ปฏิบัติงานและการกำกับดูแลความปลอดภัย
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    iframeDoc.open();
+    iframeDoc.write(htmlContent);
+    iframeDoc.close();
+
+    // Remove the iframe after printing is done
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 5000);
   };
 
   // Update worker position on the fly
@@ -303,9 +541,21 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
 
           {/* Workers list */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
-            <h4 className="font-bold text-white text-sm border-b border-zinc-800 pb-2">
-              รายชื่อผู้ปฏิบัติงาน ({contractor.workers?.length || 0})
-            </h4>
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+              <h4 className="font-bold text-white text-sm">
+                รายชื่อผู้ปฏิบัติงาน ({contractor.workers?.length || 0})
+              </h4>
+              <button
+                id="btn-print-workers-pdf"
+                type="button"
+                onClick={handlePrintWorkers}
+                className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 text-lime-400 hover:text-lime-350 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-all shadow-sm"
+                title="ออกรายงาน PDF / สั่งพิมพ์"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>พิมพ์รายงาน / PDF</span>
+              </button>
+            </div>
 
             <form onSubmit={handleAddWorker} className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -413,7 +663,7 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
                       <select
                         value={w.position || ''}
                         onChange={(e) => handleUpdateWorkerPosition(w.id, e.target.value)}
-                        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-lime-500 font-medium"
+                        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-lime-500 font-medium w-36 sm:w-44 max-w-[180px] truncate"
                       >
                         <option value="">-- ไม่ระบุตำแหน่ง --</option>
                         {workerPositions.map((pos) => (

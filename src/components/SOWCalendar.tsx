@@ -307,7 +307,7 @@ export default function SOWCalendar({ project }: SOWCalendarProps) {
       </div>
 
       {/* Filter Options */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-zinc-950/50 p-4 rounded-xl border border-zinc-850/80">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-zinc-950/50 p-4 rounded-xl border border-zinc-850/80">
         <div>
           <label className="block text-[10px] uppercase font-black text-zinc-500 tracking-wider mb-1.5">
             ผู้รับผิดชอบงาน
@@ -368,17 +368,6 @@ export default function SOWCalendar({ project }: SOWCalendarProps) {
               เฉพาะเป้าหมาย/เดดไลน์
             </button>
           </div>
-        </div>
-
-        <div className="flex items-end justify-end">
-          <button
-            type="button"
-            onClick={handleSelectToday}
-            className="w-full bg-zinc-900 border border-zinc-800 hover:bg-zinc-850 hover:border-zinc-700 text-zinc-200 font-bold py-1.5 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5"
-          >
-            <Clock className="w-3.5 h-3.5 text-lime-400" />
-            <span>กระโดดไปที่ "วันนี้" (10 ก.ค. 2026)</span>
-          </button>
         </div>
       </div>
 

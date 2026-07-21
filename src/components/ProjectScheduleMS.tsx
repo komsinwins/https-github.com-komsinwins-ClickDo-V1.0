@@ -355,6 +355,20 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
     onUpdateSOW(updatedScopes);
   };
 
+  const handleMoveTask = (index: number, direction: 'up' | 'down') => {
+    const updatedScopes = [...project.scopesOfWork];
+    if (direction === 'up' && index > 0) {
+      const temp = updatedScopes[index];
+      updatedScopes[index] = updatedScopes[index - 1];
+      updatedScopes[index - 1] = temp;
+    } else if (direction === 'down' && index < updatedScopes.length - 1) {
+      const temp = updatedScopes[index];
+      updatedScopes[index] = updatedScopes[index + 1];
+      updatedScopes[index + 1] = temp;
+    }
+    onUpdateSOW(updatedScopes);
+  };
+
   const handleExportPDF = async () => {
     const element = document.getElementById('msproject-gantt-root');
     if (!element) return;
@@ -467,22 +481,22 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
         className="bg-zinc-950 border border-zinc-900 rounded-xl overflow-hidden shadow-2xl"
       >
         {/* Quick Legend Bar */}
-        <div className="bg-zinc-900/80 px-4 py-2 border-b border-zinc-850 flex flex-wrap items-center justify-between text-xs text-zinc-400 gap-2">
+        <div className="bg-zinc-800 px-4 py-2 border-b border-zinc-700 flex flex-wrap items-center justify-between text-xs text-zinc-300 gap-2">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-1.5 bg-black border border-zinc-500 block rounded" />
+              <span className="w-3 h-1.5 bg-lime-400 border border-lime-300 block rounded" />
               <span>หัวข้อหลัก (Summary Task)</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-1.5 bg-blue-500 block rounded" />
+              <span className="w-3 h-1.5 bg-blue-400 block rounded" />
               <span>งานย่อย (Active Sub-task)</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-1.5 bg-emerald-500 block rounded" />
+              <span className="w-3 h-1.5 bg-emerald-400 block rounded" />
               <span>สำเร็จแล้ว (Completed)</span>
             </span>
           </div>
-          <span className="text-[10px] text-zinc-500 font-mono">
+          <span className="text-[10px] text-zinc-400 font-mono">
             โหมดแผนงานจำลอง Microsoft Project Pro (WBS Auto-scheduling)
           </span>
         </div>
@@ -497,7 +511,7 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
             }`}>
               <table className="w-full text-left text-xs text-zinc-300 border-collapse">
                 <thead>
-                  <tr className="bg-zinc-900 text-zinc-400 font-bold uppercase tracking-wider border-b border-zinc-850 h-10 select-none">
+                  <tr className="bg-zinc-100 text-zinc-800 font-extrabold uppercase tracking-wider border-b border-zinc-300 h-10 select-none">
                     <th className="px-3 text-center w-12 font-mono">ID</th>
                     <th className="px-1 text-center w-8">โหมด</th>
                     <th className="px-3 min-w-[200px]">ชื่อแผนงาน (Task Name)</th>
@@ -601,6 +615,32 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
                             {/* Actions */}
                             <td className="px-3 py-1.5 text-right no-print">
                               <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveTask(mainIdx, 'up')}
+                                  disabled={mainIdx === 0}
+                                  className={`p-1 rounded transition-all ${
+                                    mainIdx === 0 
+                                      ? 'text-zinc-700 cursor-not-allowed opacity-30' 
+                                      : 'hover:bg-zinc-800 text-zinc-400 hover:text-lime-400'
+                                  }`}
+                                  title="เลื่อนหัวข้อขึ้น"
+                                >
+                                  <ChevronUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveTask(mainIdx, 'down')}
+                                  disabled={mainIdx === project.scopesOfWork.length - 1}
+                                  className={`p-1 rounded transition-all ${
+                                    mainIdx === project.scopesOfWork.length - 1 
+                                      ? 'text-zinc-700 cursor-not-allowed opacity-30' 
+                                      : 'hover:bg-zinc-800 text-zinc-400 hover:text-lime-400'
+                                  }`}
+                                  title="เลื่อนหัวข้อลง"
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => handleOpenAddSubTask(item.id)}
@@ -778,20 +818,20 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
                                 <div className="w-[1px] h-full border-l border-dashed border-zinc-800/40" style={{ left: '75%' }} />
                               </div>
 
-                              {/* Microsoft Project Summary Bar (Black bar with triangle endpoints) */}
+                              {/* Microsoft Project Summary Bar (Bright lime-400 solid bar with triangle endpoints) */}
                               <div
-                                className="absolute h-2.5 bg-black border border-zinc-400 relative rounded-sm"
+                                className="absolute h-2.5 bg-lime-400 border border-lime-300 relative rounded-sm shadow-md shadow-lime-400/20"
                                 style={{
                                   left: `${mainPos.leftPct}%`,
                                   width: `${mainPos.widthPct}%`
                                 }}
                               >
                                 {/* Left bracket triangle */}
-                                <div className="absolute -left-1 -bottom-1 w-2 h-2 bg-black border-l border-b border-zinc-400 rotate-45" />
+                                <div className="absolute -left-1 -bottom-1 w-2 h-2 bg-lime-400 border-l border-b border-lime-300 rotate-45" />
                                 {/* Right bracket triangle */}
-                                <div className="absolute -right-1 -bottom-1 w-2 h-2 bg-black border-r border-b border-zinc-400 -rotate-45" />
+                                <div className="absolute -right-1 -bottom-1 w-2 h-2 bg-lime-400 border-r border-b border-lime-300 -rotate-45" />
 
-                                <span className="absolute -top-3.5 left-0 text-[8px] font-mono font-bold text-lime-400 whitespace-nowrap">
+                                <span className="absolute -top-3.5 left-0 text-[8px] font-mono font-bold text-lime-400 whitespace-nowrap bg-zinc-950/80 px-1 rounded">
                                   {item.progress}%
                                 </span>
                               </div>
@@ -821,11 +861,11 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
                                 </div>
 
                                 {/* Active Task Gantt Progress Bar */}
-                                <div className="col-span-4 bg-zinc-900/40 h-5 border border-zinc-900 rounded-sm relative flex items-center">
+                                <div className="col-span-4 bg-zinc-900/60 h-5 border border-zinc-800 rounded-sm relative flex items-center">
                                   {/* Sub-task solid bar */}
                                   <div
-                                    className={`absolute h-3 rounded-sm relative shadow-sm overflow-hidden flex items-center ${
-                                      isDone ? 'bg-emerald-600/20 border border-emerald-500' : 'bg-blue-600/20 border border-blue-500'
+                                    className={`absolute h-3.5 rounded-sm relative shadow-sm overflow-hidden flex items-center bg-zinc-800 border ${
+                                      isDone ? 'border-emerald-400' : 'border-blue-400'
                                     }`}
                                     style={{
                                       left: `${subPos.leftPct}%`,
@@ -847,7 +887,7 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
 
                                   {/* Subtask Date Label next to the bar */}
                                   <span 
-                                    className="absolute text-[8px] font-mono text-zinc-400 pointer-events-none whitespace-nowrap bg-zinc-950/50 px-1 py-0.2 rounded"
+                                    className="absolute text-[8px] font-mono text-zinc-300 pointer-events-none whitespace-nowrap bg-zinc-950/50 px-1 py-0.2 rounded"
                                     style={{
                                       left: `calc(${subPos.leftPct}% + ${subPos.widthPct}% + 8px)`
                                     }}

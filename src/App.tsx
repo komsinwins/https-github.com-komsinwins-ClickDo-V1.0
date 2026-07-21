@@ -1338,7 +1338,7 @@ export default function App() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
-                        <span className="text-zinc-500 text-xs uppercase font-bold tracking-wider block">สถานที่ติดตั้งหลัก</span>
+                        <span className="text-zinc-500 text-xs uppercase font-bold tracking-wider block">สถานที่ติดตั้ง/บริเวณที่ติดตั้ง</span>
                         <p className="text-sm text-zinc-200 mt-1">{selectedProject.installationSite}</p>
                       </div>
 
