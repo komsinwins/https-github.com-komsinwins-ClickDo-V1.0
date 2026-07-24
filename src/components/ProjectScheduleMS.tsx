@@ -12,7 +12,7 @@ import { Project, SOWItem, SOWSubTask } from '../types';
 import { 
   Plus, Trash2, Edit3, Calendar, CheckSquare, Download, Check, 
   ChevronDown, ChevronUp, Clock, User, Grid, Table, SplitSquareVertical,
-  Activity, ArrowRight, Settings, ListPlus, FileSpreadsheet, ListTodo, Layers
+  Activity, ArrowRight, Settings, ListPlus, FileSpreadsheet, ListTodo, Layers, Printer
 } from 'lucide-react';
 
 interface ProjectScheduleMSProps {
@@ -57,6 +57,56 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
     const diff = Math.ceil((projEnd - projStart) / (1000 * 60 * 60 * 24)) + 1;
     return diff > 0 ? diff : 15;
   }, [projStart, projEnd]);
+
+  // Compute flattened tasks list for reports and print window
+  const flattenedTasks = useMemo(() => {
+    const list: Array<{
+      wbsId: string;
+      name: string;
+      isSummary: boolean;
+      startDate: string;
+      endDate: string;
+      durationDays: number;
+      progress: number;
+      predecessors?: string[];
+      assignee?: string;
+    }> = [];
+
+    project.scopesOfWork.forEach((item, mainIdx) => {
+      const wbsId = `${mainIdx + 1}`;
+      const mainDuration = item.subTasks && item.subTasks.length > 0
+        ? item.subTasks.reduce((acc, curr) => acc + (curr.durationDays || 1), 0)
+        : 5;
+
+      list.push({
+        wbsId,
+        name: item.taskName,
+        isSummary: true,
+        startDate: item.startDate || project.startDate || '-',
+        endDate: item.endDate || project.endDate || '-',
+        durationDays: mainDuration,
+        progress: item.progress || 0,
+        assignee: item.assignee || project.projectManager || '-',
+      });
+
+      if (item.subTasks) {
+        item.subTasks.forEach((sub, subIdx) => {
+          list.push({
+            wbsId: `${wbsId}.${subIdx + 1}`,
+            name: sub.name,
+            isSummary: false,
+            startDate: sub.startDate || item.startDate || '-',
+            endDate: sub.endDate || item.endDate || '-',
+            durationDays: sub.durationDays || 1,
+            progress: sub.progress || 0,
+            assignee: item.assignee || '-',
+          });
+        });
+      }
+    });
+
+    return list;
+  }, [project]);
 
   // Generate date header labels (weeks or days depending on project size)
   const timelineDates = useMemo(() => {
@@ -369,6 +419,136 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
     onUpdateSOW(updatedScopes);
   };
 
+  const handlePrintPDFWindow = () => {
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      alert('เบราว์เซอร์บล็อกการเปิดหน้าต่างพิมพ์ กรุณาอนุญาตป๊อปอัพ');
+      return;
+    }
+
+    const rowsHtml = flattenedTasks.map((t) => `
+      <tr style="border-bottom: 1px solid #e4e4e7; ${t.isSummary ? 'background-color: #f4f4f5; font-weight: bold;' : ''}">
+        <td style="padding: 6px 8px; font-family: monospace; font-size: 11px;">${t.wbsId}</td>
+        <td style="padding: 6px 8px;">${t.isSummary ? '🔷 ' : '📌 '}${t.name}</td>
+        <td style="padding: 6px 8px;">${t.startDate}</td>
+        <td style="padding: 6px 8px;">${t.endDate}</td>
+        <td style="padding: 6px 8px; text-align: center;">${t.durationDays} วัน</td>
+        <td style="padding: 6px 8px; text-align: center;">${t.progress}%</td>
+        <td style="padding: 6px 8px;">${t.predecessors?.join(', ') || '-'}</td>
+        <td style="padding: 6px 8px;">${t.assignee || '-'}</td>
+      </tr>
+    `).join('');
+
+    const ganttChartHtml = project.scopesOfWork.map((item, mainIdx) => {
+      const mainPos = calculateGanttPosition(item.startDate, item.endDate);
+      const startD = new Date(item.startDate);
+      const endD = new Date(item.endDate);
+      const itemDuration = isNaN(startD.getTime()) || isNaN(endD.getTime())
+        ? 0
+        : Math.max(1, Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+      const subsHtml = (item.subTasks || []).map((sub, subIdx) => {
+        const subPos = calculateGanttPosition(sub.startDate, sub.endDate);
+        const isDone = sub.progress === 100;
+        return `
+          <div style="margin-top: 6px; padding-left: 12px; display: flex; align-items: center; font-size: 10px;">
+            <div style="width: 220px; shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #3f3f46; font-weight: 500;">
+              └─ ${mainIdx + 1}.${subIdx + 1} ${sub.name}
+            </div>
+            <div style="flex: 1; height: 18px; background-color: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 4px; position: relative; margin-left: 12px;">
+              <div style="position: absolute; left: ${subPos.leftPct}%; width: ${Math.max(subPos.widthPct, 2)}%; height: 100%; background: ${isDone ? 'linear-gradient(90deg, #10b981, #14b8a6)' : 'linear-gradient(90deg, #3b82f6, #06b6d4)'}; border-radius: 3px; display: flex; align-items: center; padding-left: 6px; color: #ffffff; font-size: 9px; font-weight: bold; overflow: hidden;">
+                ${sub.progress}%
+              </div>
+              <span style="position: absolute; right: 8px; top: 2px; font-size: 8px; font-family: monospace; color: #71717a;">${sub.startDate} ~ ${sub.endDate}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div style="margin-bottom: 14px; border-bottom: 1px solid #e4e4e7; padding-bottom: 10px;">
+          <div style="display: flex; align-items: center; font-size: 11px; font-weight: bold; color: #09090b;">
+            <div style="width: 220px; shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #65a30d;">
+              🔷 ${mainIdx + 1}.0 ${item.taskName}
+            </div>
+            <div style="flex: 1; height: 22px; background-color: #f4f4f5; border: 1px solid #d4d4d8; border-radius: 4px; position: relative; margin-left: 12px;">
+              <div style="position: absolute; left: ${mainPos.leftPct}%; width: ${Math.max(mainPos.widthPct, 2)}%; height: 100%; background-color: #a3e635; border-radius: 3px; display: flex; align-items: center; padding-left: 8px; color: #000000; font-size: 10px; font-weight: 800; border: 1px solid #84cc16;">
+                ${item.progress}%
+              </div>
+              <span style="position: absolute; right: 8px; top: 3px; font-size: 9px; font-family: monospace; color: #3f3f46; font-weight: bold;">${item.startDate} ~ ${item.endDate} (${itemDuration} วัน)</span>
+            </div>
+          </div>
+          ${subsHtml}
+        </div>
+      `;
+    }).join('');
+
+    const showTable = viewMode === 'table' || viewMode === 'split';
+    const showGantt = viewMode === 'gantt' || viewMode === 'split';
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>แผนงานโครงการ MS Project - ${project.name}</title>
+          <style>
+            @page { size: landscape; margin: 10mm; }
+            body { font-family: 'Sarabun', Arial, sans-serif; font-size: 11px; color: #18181b; padding: 15px; }
+            h1 { font-size: 18px; margin-bottom: 4px; color: #09090b; }
+            .meta { font-size: 11px; color: #52525b; margin-bottom: 16px; border-bottom: 2px solid #09090b; padding-bottom: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
+            th { background-color: #27272a; color: #ffffff; text-align: left; padding: 8px; font-size: 11px; }
+            td { font-size: 11px; }
+            .section-title { font-size: 14px; font-weight: bold; margin-top: 16px; margin-bottom: 8px; color: #09090b; border-bottom: 1px solid #d4d4d8; padding-bottom: 4px; }
+          </style>
+        </head>
+        <body>
+          <h1>แผนงานโครงการ (Project Schedule - MS Project Style) ${viewMode === 'gantt' ? '[Gantt Chart View]' : ''}</h1>
+          <div class="meta">
+            <strong>โครงการ:</strong> ${project.name} &nbsp;|&nbsp;
+            <strong>เจ้าของงาน:</strong> ${project.ownerName} &nbsp;|&nbsp;
+            <strong>ระยะเวลา:</strong> ${project.startDate} ถึง ${project.endDate} (${project.durationDays} วัน)
+          </div>
+
+          ${showTable ? `
+            <div class="section-title">📋 ตารางรายละเอียดแผนงาน (Task Sheet Table)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 50px;">WBS</th>
+                  <th>ชื่อหัวข้อแผนงาน / งานย่อย</th>
+                  <th style="width: 80px;">วันเริ่ม</th>
+                  <th style="width: 80px;">วันสิ้นสุด</th>
+                  <th style="width: 65px; text-align: center;">ระยะเวลา</th>
+                  <th style="width: 65px; text-align: center;">ความคืบหน้า</th>
+                  <th style="width: 90px;">งานก่อนหน้า</th>
+                  <th style="width: 100px;">ผู้รับผิดชอบ</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          ` : ''}
+
+          ${showGantt ? `
+            <div class="section-title">📊 แผนภูมิแกรนต์ (Gantt Chart Visualization)</div>
+            <div style="background-color: #ffffff; padding: 12px; border: 1px solid #e4e4e7; border-radius: 8px;">
+              ${ganttChartHtml}
+            </div>
+          ` : ''}
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWin.document.close();
+  };
+
   const handleExportPDF = async () => {
     const element = document.getElementById('msproject-gantt-root');
     if (!element) return;
@@ -378,25 +558,63 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
 
+      // Unset overflow on root
+      const originalRootOverflow = element.style.overflow;
+      element.style.overflow = 'visible';
+
+      // Temporarily expand scrollable containers for full capturing
+      const scrollables = element.querySelectorAll('.overflow-x-auto, .overflow-y-auto');
+      const originalOverflows: string[] = [];
+      scrollables.forEach((s) => {
+        const el = s as HTMLElement;
+        originalOverflows.push(el.style.overflow);
+        el.style.overflow = 'visible';
+      });
+
       const canvas = await html2canvas(element, {
-        scale: 1.5,
+        scale: 2,
         useCORS: true,
-        backgroundColor: '#09090b', // Zinc-950 matched
+        allowTaint: true,
+        backgroundColor: '#09090b',
         logging: false,
+        windowWidth: Math.max(element.scrollWidth + 100, 1200),
+        scrollX: 0,
+        scrollY: 0,
+      });
+
+      // Restore overflows
+      element.style.overflow = originalRootOverflow;
+      scrollables.forEach((s, idx) => {
+        (s as HTMLElement).style.overflow = originalOverflows[idx];
       });
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'landscape',
-        unit: 'px',
-        format: [canvas.width / 1.5, canvas.height / 1.5],
+        unit: 'mm',
+        format: 'a4',
       });
 
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 1.5, canvas.height / 1.5);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const pxToMm = 0.264583;
+      const imgWidthMm = canvas.width * pxToMm;
+      const imgHeightMm = canvas.height * pxToMm;
+
+      const ratio = Math.min(pdfWidth / imgWidthMm, pdfHeight / imgHeightMm);
+
+      const renderWidth = imgWidthMm * ratio;
+      const renderHeight = imgHeightMm * ratio;
+      const xOffset = Math.max(0, (pdfWidth - renderWidth) / 2);
+      const yOffset = Math.max(0, (pdfHeight - renderHeight) / 2);
+
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, renderWidth, renderHeight);
       pdf.save(`MS_Project_Schedule_${project.name.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error('Error exporting MS Project View:', error);
-      alert('เกิดข้อผิดพลาดในการส่งออก PDF');
+      // Fallback: Open print dialog / save as PDF
+      handlePrintPDFWindow();
     } finally {
       setIsExporting(false);
     }
@@ -454,15 +672,28 @@ export default function ProjectScheduleMS({ project, onUpdateSOW }: ProjectSched
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={handleExportPDF}
-            disabled={isExporting}
-            className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-50"
-          >
-            <Download className="w-4 h-4 text-lime-400" />
-            <span>{isExporting ? 'กำลังบันทึก PDF...' : 'บันทึกเป็น PDF'}</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-750 text-white border border-zinc-700 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-50"
+              title="บันทึกรูปกราฟและตารางแผนงานเป็นไฟล์ PDF"
+            >
+              <Download className="w-4 h-4 text-lime-400" />
+              <span>{isExporting ? 'กำลังบันทึก PDF...' : 'บันทึกเป็น PDF'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePrintPDFWindow}
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-750 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all"
+              title="เปิดหน้าต่างพิมพ์รายงานแผนงานโครงการพร้อมพิมพ์/บันทึกเป็น PDF"
+            >
+              <Printer className="w-4 h-4 text-blue-400" />
+              <span>พิมพ์รายงาน</span>
+            </button>
+          </div>
 
           <button
             type="button"

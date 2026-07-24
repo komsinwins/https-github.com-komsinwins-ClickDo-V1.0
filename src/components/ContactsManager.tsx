@@ -26,10 +26,14 @@ export default function ContactsManager({
   // Form states for adding contact
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [department, setDepartment] = useState('');
   const [selectedPosition, setSelectedPosition] = useState(positions[0] || '');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [lineId, setLineId] = useState('');
+
+  // Editing state
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
   // Add Contact
   const handleAddContact = (e: React.FormEvent) => {
@@ -41,6 +45,7 @@ export default function ContactsManager({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       position: selectedPosition,
+      department: department.trim() || undefined,
       phone: phone.trim() || undefined,
       email: email.trim() || undefined,
       lineId: lineId.trim() || undefined,
@@ -49,9 +54,25 @@ export default function ContactsManager({
     onUpdateContacts([...project.contacts, newContact]);
     setFirstName('');
     setLastName('');
+    setDepartment('');
     setPhone('');
     setEmail('');
     setLineId('');
+  };
+
+  // Open Edit Modal
+  const handleOpenEdit = (c: Contact) => {
+    setEditingContact({ ...c });
+  };
+
+  // Save Edit Contact
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingContact || !editingContact.firstName.trim() || !editingContact.lastName.trim()) return;
+
+    const updated = project.contacts.map((c) => (c.id === editingContact.id ? editingContact : c));
+    onUpdateContacts(updated);
+    setEditingContact(null);
   };
 
   // Delete Contact
@@ -217,6 +238,20 @@ export default function ContactsManager({
               </div>
 
               <div>
+                <label htmlFor="ct-dept" className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">
+                  แผนก / ฝ่าย
+                </label>
+                <input
+                  id="ct-dept"
+                  type="text"
+                  placeholder="เช่น ฝ่ายวิศวกรรม / แผนกจัดซื้อ"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-lime-500"
+                />
+              </div>
+
+              <div>
                 <label htmlFor="ct-pos" className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">
                   ตำแหน่งในโครงการ *
                 </label>
@@ -304,6 +339,7 @@ export default function ContactsManager({
                 <tr className="border-b border-zinc-800 text-zinc-500 font-semibold uppercase">
                   <th className="py-2.5 px-3">ลำดับ</th>
                   <th className="py-2.5 px-3">ชื่อ - นามสกุล</th>
+                  <th className="py-2.5 px-3">แผนก / ฝ่าย</th>
                   <th className="py-2.5 px-3">ตำแหน่ง</th>
                   <th className="py-2.5 px-3">เบอร์โทรติดต่อ</th>
                   <th className="py-2.5 px-3">Email</th>
@@ -314,7 +350,7 @@ export default function ContactsManager({
               <tbody>
                 {(!project.contacts || project.contacts.length === 0) ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-zinc-600 italic">
+                    <td colSpan={8} className="text-center py-8 text-zinc-600 italic">
                       ยังไม่ได้ระบุผู้ติดต่อใดๆ ในโครงการนี้
                     </td>
                   </tr>
@@ -325,6 +361,15 @@ export default function ContactsManager({
                       <td className="py-2.5 px-3 font-bold text-white">
                         {c.firstName} {c.lastName}
                       </td>
+                      <td className="py-2.5 px-3 text-zinc-300">
+                        {c.department ? (
+                          <span className="px-2 py-0.5 bg-zinc-950 text-blue-400 border border-zinc-800 rounded text-[10px] font-semibold">
+                            {c.department}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-600">-</span>
+                        )}
+                      </td>
                       <td className="py-2.5 px-3">
                         <span className="px-2.5 py-0.5 bg-zinc-950 text-lime-400 border border-zinc-800 rounded-full font-semibold text-[10px] whitespace-nowrap">
                           {c.position}
@@ -334,15 +379,26 @@ export default function ContactsManager({
                       <td className="py-2.5 px-3 text-zinc-300 truncate max-w-[120px]" title={c.email}>{c.email || '-'}</td>
                       <td className="py-2.5 px-3 font-mono text-zinc-300">{c.lineId || '-'}</td>
                       <td className="py-2.5 px-3 text-right">
-                        <button
-                          id={`btn-delete-contact-${c.id}`}
-                          type="button"
-                          onClick={() => handleDeleteContact(c.id)}
-                          className="p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-rose-400 transition-all"
-                          title="ลบรายชื่อ"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            id={`btn-edit-contact-${c.id}`}
+                            type="button"
+                            onClick={() => handleOpenEdit(c)}
+                            className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-lime-400 transition-all"
+                            title="แก้ไขข้อมูลผู้ติดต่อ"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            id={`btn-delete-contact-${c.id}`}
+                            type="button"
+                            onClick={() => handleDeleteContact(c.id)}
+                            className="p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-rose-400 transition-all"
+                            title="ลบรายชื่อ"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -352,6 +408,129 @@ export default function ContactsManager({
           </div>
         </div>
       </div>
+
+      {/* Edit Contact Modal */}
+      {editingContact && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-lime-400" />
+                <h3 className="text-base font-bold text-white">แก้ไขข้อมูลผู้ติดต่อโครงการ</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingContact(null)}
+                className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">ชื่อจริง *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingContact.firstName}
+                    onChange={(e) => setEditingContact({ ...editingContact, firstName: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-lime-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">นามสกุล *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingContact.lastName}
+                    onChange={(e) => setEditingContact({ ...editingContact, lastName: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-lime-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">แผนก / ฝ่าย</label>
+                <input
+                  type="text"
+                  placeholder="เช่น ฝ่ายวิศวกรรม / แผนกจัดซื้อ"
+                  value={editingContact.department || ''}
+                  onChange={(e) => setEditingContact({ ...editingContact, department: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-lime-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">ตำแหน่งในโครงการ *</label>
+                <select
+                  required
+                  value={editingContact.position}
+                  onChange={(e) => setEditingContact({ ...editingContact, position: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-lime-500"
+                >
+                  {positions.map((pos) => (
+                    <option key={pos} value={pos}>
+                      {pos}
+                    </option>
+                  ))}
+                  {!positions.includes(editingContact.position) && (
+                    <option value={editingContact.position}>{editingContact.position}</option>
+                  )}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">เบอร์โทร</label>
+                  <input
+                    type="text"
+                    value={editingContact.phone || ''}
+                    onChange={(e) => setEditingContact({ ...editingContact, phone: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-lime-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editingContact.email || ''}
+                    onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-lime-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-400 uppercase mb-1">Line ID</label>
+                  <input
+                    type="text"
+                    value={editingContact.lineId || ''}
+                    onChange={(e) => setEditingContact({ ...editingContact, lineId: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-lime-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingContact(null)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-lg transition-all"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-lime-500 hover:bg-lime-400 text-black font-extrabold text-xs rounded-lg transition-all flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>บันทึกการแก้ไข</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

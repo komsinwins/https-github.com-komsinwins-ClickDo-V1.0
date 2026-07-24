@@ -497,30 +497,30 @@ export default function ScopeOfWorkManager({ project, onUpdateSOW }: ScopeOfWork
       </div>
 
       {/* Sub Menu Switcher Tabs */}
-      <div className="flex border-b border-zinc-800 text-sm no-print">
+      <div className="flex overflow-x-auto whitespace-nowrap scrollbar-none border-b border-zinc-800 text-xs sm:text-sm no-print">
         <button
           type="button"
           onClick={() => setActiveTab('timeline')}
-          className={`px-5 py-3 font-bold border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-3 font-bold border-b-2 transition-all flex items-center gap-2 shrink-0 ${
             activeTab === 'timeline'
               ? 'border-lime-500 text-lime-400 bg-lime-500/5'
               : 'border-transparent text-zinc-400 hover:text-white'
           }`}
         >
-          <Layers className="w-4 h-4" />
+          <Layers className="w-4 h-4 shrink-0" />
           <span>1. Timeline (หัวข้อหลักและระยะเวลา)</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('schedule')}
-          className={`px-5 py-3 font-bold border-b-2 transition-all flex items-center gap-2 ${
+          className={`px-4 sm:px-5 py-3 font-bold border-b-2 transition-all flex items-center gap-2 shrink-0 ${
             activeTab === 'schedule'
               ? 'border-yellow-500 text-yellow-400 bg-yellow-500/5'
               : 'border-transparent text-zinc-400 hover:text-white'
           }`}
         >
-          <CheckSquare className="w-4 h-4" />
+          <CheckSquare className="w-4 h-4 shrink-0" />
           <span>2. Schedule Plan (แผนงาน & รายละเอียดย่อย)</span>
         </button>
       </div>

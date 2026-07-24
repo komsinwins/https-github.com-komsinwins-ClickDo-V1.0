@@ -288,17 +288,17 @@ export default function SOWCalendar({ project }: SOWCalendarProps) {
         </div>
 
         {/* Quick Date Range info */}
-        <div className="flex items-center gap-4 bg-zinc-950 p-2.5 rounded-xl border border-zinc-850 text-xs text-zinc-400">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 bg-zinc-950 p-2.5 rounded-xl border border-zinc-850 text-xs text-zinc-400">
           <div>
             <span className="text-[10px] text-zinc-500 uppercase block font-black">วันเริ่มต้นโครงการ</span>
             <span className="text-white font-medium">{project.startDate || 'ไม่ได้ระบุ'}</span>
           </div>
-          <div className="h-8 w-px bg-zinc-800"></div>
+          <div className="h-8 w-px bg-zinc-800 hidden sm:block"></div>
           <div>
             <span className="text-[10px] text-zinc-500 uppercase block font-black">วันสิ้นสุดโครงการ</span>
             <span className="text-rose-400 font-medium">{project.endDate || 'ไม่ได้ระบุ'}</span>
           </div>
-          <div className="h-8 w-px bg-zinc-800"></div>
+          <div className="h-8 w-px bg-zinc-800 hidden sm:block"></div>
           <div>
             <span className="text-[10px] text-zinc-500 uppercase block font-black">ระยะเวลารวม</span>
             <span className="text-lime-400 font-bold">{project.durationDays} วัน</span>

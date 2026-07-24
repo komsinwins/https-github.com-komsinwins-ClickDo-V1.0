@@ -127,7 +127,6 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
         <td style="padding: 10px 12px; text-align: center; font-family: monospace; font-size: 13px; color: #475569; border-bottom: 1px solid #cbd5e1;">${index + 1}</td>
         <td style="padding: 10px 12px; font-weight: 600; font-size: 13px; color: #0f172a; border-bottom: 1px solid #cbd5e1;">${w.name}</td>
         <td style="padding: 10px 12px; font-size: 13px; color: #334155; border-bottom: 1px solid #cbd5e1; font-weight: 500;">${w.position || '-- ไม่ได้ระบุตำแหน่ง --'}</td>
-        <td style="padding: 10px 12px; text-align: center; font-size: 12px; color: #94a3b8; font-style: italic; border-bottom: 1px solid #cbd5e1;">( ลงชื่อผู้ปฏิบัติงาน )</td>
       </tr>
     `).join('');
 
@@ -258,8 +257,8 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
       <body>
         <div class="header-container">
           <div class="title-area">
-            <h1>เอกสารรายชื่อผู้ปฏิบัติงานประจำโครงการ</h1>
-            <p>Project Worker Registry & Area Access Registry</p>
+            <h1>ใบรายชื่อผู้ปฏิบัติงาน</h1>
+            <p>Project Site Worker Roster</p>
           </div>
           <div class="logo-area">
             <b>วันที่ออกเอกสาร:</b> ${formattedDate}<br>
@@ -290,34 +289,27 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
           </div>
         </div>
 
-        <div class="table-title">บัญชีรายชื่อผู้เข้าปฏิบัติงานในพื้นที่ (จำนวนทั้งหมด ${contractor.workers?.length || 0} คน)</div>
+        <div class="table-title">ใบรายชื่อผู้ปฏิบัติงานในพื้นที่ (จำนวนทั้งหมด ${contractor.workers?.length || 0} คน)</div>
         <table>
           <thead>
             <tr>
               <th style="width: 70px; text-align: center;">ลำดับที่</th>
               <th>ชื่อ-นามสกุล ผู้ปฏิบัติงาน</th>
               <th style="width: 250px;">ตำแหน่งในโครงการ</th>
-              <th style="width: 220px; text-align: center;">ลงชื่อเข้าปฏิบัติงาน</th>
             </tr>
           </thead>
           <tbody>
-            ${workerRows || '<tr><td colspan="4" style="text-align: center; padding: 24px; color: #64748b; font-style: italic;">ไม่มีรายชื่อผู้ปฏิบัติงานในระบบ</td></tr>'}
+            ${workerRows || '<tr><td colspan="3" style="text-align: center; padding: 24px; color: #64748b; font-style: italic;">ไม่มีรายชื่อผู้ปฏิบัติงานในระบบ</td></tr>'}
           </tbody>
         </table>
 
-        <div class="signature-area">
-          <div class="sig-box">
-            <div class="sig-line"></div>
-            <b>ลงชื่อ............................................................</b>
-            <p style="margin: 6px 0 0 0; font-weight: 700;">( ${contractor.foremanName || '................................................'} )</p>
-            <p style="margin: 2px 0 0 0; color: #475569; font-size: 11.5px;">หัวหน้าทีมตัวแทนผู้รับเหมา</p>
-          </div>
-          <div class="sig-box">
-            <div class="sig-line"></div>
-            <b>ลงชื่อ............................................................</b>
-            <p style="margin: 6px 0 0 0; font-weight: 700;">( ${project.projectManager || '................................................'} )</p>
-            <p style="margin: 2px 0 0 0; color: #475569; font-size: 11.5px;">ผู้จัดการควบคุมโครงการ (Project Manager)</p>
-          </div>
+        <div style="margin-top: 24px; padding: 14px 18px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px;">
+          <div style="font-weight: 700; color: #0f172a; margin-bottom: 6px;">📌 หมายเหตุ / ข้อปฏิบัติเพิ่มเติม:</div>
+          <ul style="margin: 0; padding-left: 20px; color: #475569; line-height: 1.6;">
+            <li>เอกสารนี้ใช้สำหรับตรวจสอบและยืนยันรายชื่อบุคลากรผู้ปฏิบัติงานจริงในพื้นที่โครงการ</li>
+            <li>ผู้ปฏิบัติงานทุกคนต้องสวมใส่อุปกรณ์คุ้มครองความปลอดภัยส่วนบุคคล (PPE) ตามมาตรฐานตลอดเวลาที่อยู่ในพื้นที่</li>
+            <li>หากมีการเปลี่ยนแปลงหรือเพิ่ม/ลดรายชื่อผู้ปฏิบัติงาน กรุณาแจ้งผู้จัดการโครงการ (PM) หรือหัวหน้าคุมงาน (Foreman) เพื่อปรับปรุงข้อมูลทันที</li>
+          </ul>
         </div>
 
         <div class="footer">
@@ -651,19 +643,19 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
                 contractor.workers.map((w, index) => (
                   <div
                     key={w.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2 text-xs font-medium"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-zinc-950 border border-zinc-850 rounded-xl px-3 py-2 text-xs font-medium"
                   >
-                    <div className="flex items-center gap-2 text-zinc-300">
-                      <span className="text-zinc-600 text-[10px] font-mono">#{index + 1}</span>
-                      <span className="font-bold">{w.name}</span>
+                    <div className="flex items-center gap-2 text-zinc-300 min-w-0 flex-1">
+                      <span className="text-zinc-600 text-[10px] font-mono shrink-0">#{index + 1}</span>
+                      <span className="font-bold truncate">{w.name}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-auto">
-                      <span className="text-[10px] text-zinc-500">ตำแหน่ง:</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0 min-w-0">
+                      <span className="text-[10px] text-zinc-500 shrink-0">ตำแหน่ง:</span>
                       <select
                         value={w.position || ''}
                         onChange={(e) => handleUpdateWorkerPosition(w.id, e.target.value)}
-                        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-lime-500 font-medium w-36 sm:w-44 max-w-[180px] truncate"
+                        className="bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 text-[11px] text-zinc-300 focus:outline-none focus:border-lime-500 font-medium w-full sm:w-48 max-w-[200px] truncate min-w-0"
                       >
                         <option value="">-- ไม่ระบุตำแหน่ง --</option>
                         {workerPositions.map((pos) => (
@@ -677,7 +669,7 @@ export default function ContractorManager({ project, onUpdateContractor }: Contr
                         id={`btn-remove-worker-${w.id}`}
                         type="button"
                         onClick={() => handleRemoveWorker(w.id)}
-                        className="p-1 text-zinc-500 hover:text-rose-400 hover:bg-zinc-900 border border-transparent hover:border-zinc-850 rounded transition-all"
+                        className="p-1 text-zinc-500 hover:text-rose-400 hover:bg-zinc-900 border border-transparent hover:border-zinc-850 rounded transition-all shrink-0"
                         title="ลบรายชื่อผู้ปฏิบัติงาน"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

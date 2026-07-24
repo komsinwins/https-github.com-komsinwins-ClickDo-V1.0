@@ -39,6 +39,7 @@ import SOWCalendar from './components/SOWCalendar';
 import CustomersManager from './components/CustomersManager';
 import ProjectScheduleMS from './components/ProjectScheduleMS';
 import ProjectClosureReport from './components/ProjectClosureReport';
+import WorkersManager from './components/WorkersManager';
 
 
 import {
@@ -50,6 +51,7 @@ import {
   ClipboardList,
   Compass,
   Users,
+  UserCheck,
   HardHat,
   ShoppingBag,
   FileImage,
@@ -76,7 +78,9 @@ import {
   Download,
   Upload,
   FileSpreadsheet,
-  FileCheck
+  FileCheck,
+  Menu,
+  X
 } from 'lucide-react';
 
 export default function App() {
@@ -106,6 +110,9 @@ export default function App() {
   // View state: 'dashboard' | 'create_project' | 'edit_project' | 'project_workspace' | 'customers'
   const [view, setView] = useState<'dashboard' | 'create_project' | 'edit_project' | 'project_workspace' | 'customers'>('dashboard');
 
+  // Mobile menu drawer state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+
   // Subtab for project workspace
   const [workspaceTab, setWorkspaceTab] = useState<'details' | 'sow' | 'ms_project' | 'calendar' | 'diagrams' | 'contacts' | 'contractor' | 'orders' | 'reports' | 'documents' | 'closure_report'>('details');
 
@@ -132,7 +139,9 @@ export default function App() {
   // Load state on mount and sync changes
   useEffect(() => {
     const initData = async () => {
-      const cloudPref = localStorage.getItem('clickdo_cloud_enabled') === 'true';
+      const storedCloudPref = localStorage.getItem('clickdo_cloud_enabled');
+      // Default to true so that opening on any other machine or browser auto-syncs from Cloud Firestore
+      const cloudPref = storedCloudPref === null ? true : storedCloudPref === 'true';
       setIsCloudEnabled(cloudPref);
 
       let loadedProjects: Project[] = [];
@@ -147,6 +156,29 @@ export default function App() {
             loadedCustomers = await fetchCustomersFromFirebase();
             setCloudStatus('connected');
             setCloudError(null);
+
+            // If Firebase returned data, cache to localDb
+            if (loadedProjects.length > 0) {
+              await localDb.set('clickdo_projects', loadedProjects);
+            } else {
+              // If Firebase is empty, check if local storage/IndexedDB has existing projects
+              const localCached = await localDb.get<Project[]>('clickdo_projects') || [];
+              if (localCached.length > 0) {
+                loadedProjects = localCached;
+                // Upload local projects to Cloud so all devices can access them
+                await saveAllProjectsToFirebase(loadedProjects).catch(console.error);
+              }
+            }
+
+            if (loadedCustomers.length > 0) {
+              await localDb.set('clickdo_customers', loadedCustomers);
+            } else {
+              const localCustCached = await localDb.get<Customer[]>('clickdo_customers') || [];
+              if (localCustCached.length > 0) {
+                loadedCustomers = localCustCached;
+                await saveAllCustomersToFirebase(loadedCustomers).catch(console.error);
+              }
+            }
           } else {
             throw new Error('ไม่สามารถเริ่มต้นระบบคลาวด์ได้');
           }
@@ -165,7 +197,7 @@ export default function App() {
         loadedCustomers = await localDb.get<Customer[]>('clickdo_customers') || [];
       }
 
-      // If loaded empty, fall back to INITIAL_PROJECTS
+      // If still empty, fall back to INITIAL_PROJECTS
       if (loadedProjects.length === 0) {
         const storedProjects = localStorage.getItem('clickdo_projects');
         if (storedProjects) {
@@ -178,7 +210,7 @@ export default function App() {
           loadedProjects = INITIAL_PROJECTS;
         }
         await localDb.set('clickdo_projects', loadedProjects);
-        if (cloudPref && cloudStatus === 'connected') {
+        if (cloudPref) {
           await saveAllProjectsToFirebase(loadedProjects).catch(console.error);
         }
       }
@@ -281,9 +313,11 @@ export default function App() {
     await localDb.set('clickdo_projects', updatedProjects);
     
     // Auto-sync projects list
-    if (isCloudEnabled && cloudStatus === 'connected') {
+    if (isCloudEnabled) {
       try {
         await saveAllProjectsToFirebase(updatedProjects);
+        setCloudStatus('connected');
+        setCloudError(null);
       } catch (err: any) {
         console.error('Failed to auto-sync projects:', err);
         setCloudStatus('error');
@@ -306,9 +340,10 @@ export default function App() {
     setCustomers(updated);
     await localDb.set('clickdo_customers', updated);
     
-    if (isCloudEnabled && cloudStatus === 'connected') {
+    if (isCloudEnabled) {
       try {
         await saveCustomerToFirebase(newCustomer);
+        setCloudStatus('connected');
       } catch (err: any) {
         console.error('Failed to sync new customer to Cloud:', err);
       }
@@ -320,9 +355,10 @@ export default function App() {
     setCustomers(updated);
     await localDb.set('clickdo_customers', updated);
     
-    if (isCloudEnabled && cloudStatus === 'connected') {
+    if (isCloudEnabled) {
       try {
         await saveCustomerToFirebase(updatedCustomer);
+        setCloudStatus('connected');
       } catch (err: any) {
         console.error('Failed to sync updated customer to Cloud:', err);
       }
@@ -334,9 +370,10 @@ export default function App() {
     setCustomers(updated);
     await localDb.set('clickdo_customers', updated);
     
-    if (isCloudEnabled && cloudStatus === 'connected') {
+    if (isCloudEnabled) {
       try {
         await deleteCustomerFromFirebase(id);
+        setCloudStatus('connected');
       } catch (err: any) {
         console.error('Failed to sync deleted customer from Cloud:', err);
       }
@@ -921,6 +958,7 @@ export default function App() {
                 { key: 'diagrams', label: 'ภาพ Diagram / แบบติดตั้ง', icon: FileImage },
                 { key: 'contacts', label: 'ผู้ติดต่อ', icon: Users },
                 { key: 'contractor', label: 'ช่าง / ผู้รับเหมา', icon: HardHat },
+                { key: 'workers', label: 'รายชื่อผู้ปฏิบัติงาน', icon: UserCheck },
                 { key: 'orders', label: 'วัสดุ / อุปกรณ์', icon: ShoppingBag },
                 { key: 'reports', label: 'รายงานรายวัน/สัปดาห์', icon: FileText },
                 { key: 'documents', label: 'แฟ้มเอกสารหลัก', icon: FolderDot },
@@ -1012,23 +1050,34 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Universal header navigation bar for Mobile/Tablet */}
         <header className="bg-zinc-950 border-b border-zinc-900 md:hidden sticky top-0 z-40 no-print">
-          <div className="px-4 py-3 flex items-center justify-between gap-4">
+          <div className="px-4 py-3 flex items-center justify-between gap-3">
+            {/* Hamburger Drawer Toggle */}
+            <button
+              id="btn-mobile-menu-toggle"
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-lime-400 rounded-lg transition-all"
+              title="เมนูนำทาง"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
             {/* Slogan & App Title */}
-            <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => { setView('dashboard'); setSelectedProject(null); }}>
-              <div className="w-8 h-8 rounded-lg bg-lime-500 flex items-center justify-center shadow">
-                <FolderKanban className="w-4.5 h-4.5 text-black" />
+            <div className="flex items-center gap-2 cursor-pointer flex-1 min-w-0" onClick={() => { setView('dashboard'); setSelectedProject(null); }}>
+              <div className="w-7 h-7 rounded-lg bg-lime-500 flex items-center justify-center shrink-0 shadow">
+                <FolderKanban className="w-4 h-4 text-black" />
               </div>
-              <div>
-                <span className="text-xs font-mono font-bold text-yellow-400 uppercase tracking-widest block leading-none">
+              <div className="min-w-0 truncate">
+                <span className="text-[10px] font-mono font-bold text-yellow-400 uppercase tracking-widest block leading-none">
                   ClickDo V1.0
                 </span>
-                <span className="text-sm font-black text-white font-display tracking-tight">
+                <span className="text-xs font-black text-white font-display tracking-tight truncate block">
                   คลิกเพื่อแผนงาน ทำเพื่อชัยชนะ
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 shrink-0">
               {view === 'dashboard' && (
                 <button
                   id="btn-nav-customers-mobile"
@@ -1038,7 +1087,7 @@ export default function App() {
                   title="ฐานข้อมูลลูกค้า"
                 >
                   <Users className="w-4 h-4 text-lime-400" />
-                  <span className="text-[10px] pr-1">ลูกค้า</span>
+                  <span className="text-[10px] pr-1 hidden sm:inline">ลูกค้า</span>
                 </button>
               )}
               {view !== 'dashboard' && (
@@ -1050,12 +1099,194 @@ export default function App() {
                   title="กลับแดชบอร์ด"
                 >
                   <LayoutDashboard className="w-4 h-4 text-lime-400" />
-                  <span className="text-[10px] pr-1">หน้าแรก</span>
+                  <span className="text-[10px] pr-1 hidden sm:inline">หน้าแรก</span>
                 </button>
               )}
             </div>
           </div>
         </header>
+
+        {/* Mobile Slide-over Drawer Backdrop & Drawer */}
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-50 md:hidden flex no-print">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+
+            {/* Slide-over Container */}
+            <div className="relative w-80 max-w-[85vw] bg-zinc-950 border-r border-zinc-800 h-full flex flex-col z-50 shadow-2xl overflow-y-auto">
+              <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-lime-500 rounded-md flex items-center justify-center text-black font-extrabold text-lg font-display">C</div>
+                  <div>
+                    <h2 className="text-base font-black text-white font-display">ClickDo V1.0</h2>
+                    <p className="text-[9px] uppercase tracking-wider text-zinc-500 font-bold">เมนูนำทางบนมือถือ</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg border border-zinc-800 transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setView('dashboard');
+                      setSelectedProject(null);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left p-2.5 rounded-lg flex items-center gap-3 transition-all ${
+                      view === 'dashboard'
+                        ? 'bg-zinc-900 text-lime-400 font-bold border-l-4 border-lime-500 shadow'
+                        : 'text-zinc-300 hover:text-white hover:bg-zinc-900/50'
+                    }`}
+                  >
+                    <LayoutDashboard className="w-4.5 h-4.5 text-lime-500" />
+                    <span className="text-xs font-bold">หน้าแรก / แดชบอร์ด (Overview)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setView('customers');
+                      setSelectedProject(null);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-left p-2.5 rounded-lg flex items-center gap-3 transition-all ${
+                      view === 'customers'
+                        ? 'bg-zinc-900 text-lime-400 font-bold border-l-4 border-lime-500 shadow'
+                        : 'text-zinc-300 hover:text-white hover:bg-zinc-900/50'
+                    }`}
+                  >
+                    <Users className="w-4.5 h-4.5 text-lime-500" />
+                    <span className="text-xs font-bold">ฐานข้อมูลลูกค้า (Customers)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setView('create_project');
+                      setSelectedProject(null);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full text-left p-2.5 rounded-lg flex items-center gap-3 text-lime-400 bg-lime-500/10 border border-lime-500/20 font-bold hover:bg-lime-500/20 transition-all"
+                  >
+                    <Plus className="w-4.5 h-4.5" />
+                    <span className="text-xs">+ สร้างโครงการใหม่</span>
+                  </button>
+                </div>
+
+                {/* Cloud Sync Status Box */}
+                <div className="p-3 bg-zinc-900/80 rounded-xl border border-zinc-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Database className="w-3.5 h-3.5 text-lime-400" />
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase">สถานะคลาวด์</span>
+                    </div>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                      cloudStatus === 'connected' ? 'bg-lime-500/20 text-lime-400' : 'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {cloudStatus === 'connected' ? 'Connected' : 'Local Only'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCloudModalOpen(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full py-1.5 bg-zinc-950 border border-zinc-800 text-zinc-300 hover:text-lime-400 text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5"
+                  >
+                    <Cloud className="w-3.5 h-3.5 text-lime-400" />
+                    <span>ตั้งค่าซิงก์คลาวด์</span>
+                  </button>
+                </div>
+
+                {/* Selected Project Tabs on Mobile */}
+                {selectedProject && (
+                  <div className="pt-3 border-t border-zinc-800 space-y-1.5">
+                    <div className="px-1 flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-lime-400">โครงการปัจจุบัน</span>
+                      <span className="text-[9px] font-mono text-zinc-400">{workspaceProgress}%</span>
+                    </div>
+                    <p className="text-xs font-extrabold text-white px-1 truncate">{selectedProject.name}</p>
+
+                    <div className="space-y-1 pt-1">
+                      {[
+                        { key: 'details', label: 'รายละเอียดโครงการ', icon: ClipboardList },
+                        { key: 'sow', label: 'Scope of Work / ไทม์ไลน์', icon: Layers },
+                        { key: 'ms_project', label: 'แผนงาน (MS Project Style)', icon: FileSpreadsheet },
+                        { key: 'calendar', label: 'ปฏิทินแผนงาน / เดดไลน์', icon: Calendar },
+                        { key: 'diagrams', label: 'ภาพ Diagram / แบบติดตั้ง', icon: FileImage },
+                        { key: 'contacts', label: 'ผู้ติดต่อ', icon: Users },
+                        { key: 'contractor', label: 'ช่าง / ผู้รับเหมา', icon: HardHat },
+                        { key: 'workers', label: 'รายชื่อผู้ปฏิบัติงาน', icon: UserCheck },
+                        { key: 'orders', label: 'วัสดุ / อุปกรณ์', icon: ShoppingBag },
+                        { key: 'reports', label: 'รายงานรายวัน/สัปดาห์', icon: FileText },
+                        { key: 'documents', label: 'แฟ้มเอกสารหลัก', icon: FolderDot },
+                        { key: 'closure_report', label: 'รายงานสรุปโครงการ', icon: FileCheck },
+                      ].map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = view === 'project_workspace' && workspaceTab === tab.key;
+                        return (
+                          <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => {
+                              setView('project_workspace');
+                              setWorkspaceTab(tab.key as any);
+                              setActiveCanvasDiagram(null);
+                              setIsMobileMenuOpen(false);
+                            }}
+                            className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 transition-all text-xs ${
+                              isActive
+                                ? 'bg-lime-500/10 text-lime-400 font-bold border-l-2 border-lime-500'
+                                : 'text-zinc-400 hover:text-white hover:bg-zinc-900/50'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4 shrink-0 text-lime-400" />
+                            <span className="truncate">{tab.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Project Switcher List */}
+                <div className="pt-3 border-t border-zinc-800 space-y-1">
+                  <span className="text-[10px] font-black uppercase text-zinc-500 px-1">เลือกโครงการอื่น ({projects.length})</span>
+                  <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                    {projects.map((proj) => (
+                      <button
+                        key={proj.id}
+                        type="button"
+                        onClick={() => {
+                          handleSelectProject(proj);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 text-xs rounded-lg truncate font-medium flex items-center justify-between ${
+                          selectedProject?.id === proj.id ? 'text-lime-400 bg-zinc-900 font-bold' : 'text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+                        }`}
+                      >
+                        <span className="truncate">○ {proj.name}</span>
+                        {selectedProject?.id === proj.id && <Check className="w-3.5 h-3.5 shrink-0 text-lime-400" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Scrollable Content Wrapper */}
         <div className="flex-1 overflow-y-auto">
@@ -1288,43 +1519,6 @@ export default function App() {
                   </span>
                 </div>
               </div>
-            </div>
-
-            {/* Subtab Workspace Menu bar */}
-            <div className="flex flex-wrap gap-1 bg-zinc-950/80 p-1.5 rounded-xl border border-zinc-900 text-xs font-semibold no-print">
-              {[
-                { key: 'details', label: 'รายละเอียดโครงการ', icon: ClipboardList },
-                { key: 'sow', label: 'Scope of Work / ไทม์ไลน์', icon: Layers },
-                { key: 'calendar', label: 'ปฏิทินแผนงาน / เดดไลน์', icon: Calendar },
-                { key: 'diagrams', label: 'ภาพ Diagram / แบบติดตั้ง', icon: FileImage },
-                { key: 'contacts', label: 'ผู้ติดต่อ', icon: Users },
-                { key: 'contractor', label: 'ช่าง / ผู้รับเหมา', icon: HardHat },
-                { key: 'orders', label: 'วัสดุ / อุปกรณ์', icon: ShoppingBag },
-                { key: 'reports', label: 'รายงานรายวัน/สัปดาห์', icon: FileText },
-                { key: 'documents', label: 'แฟ้มเอกสารหลัก', icon: FolderDot },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = workspaceTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    id={`tab-workspace-${tab.key}`}
-                    type="button"
-                    onClick={() => {
-                      setWorkspaceTab(tab.key as any);
-                      setActiveCanvasDiagram(null);
-                    }}
-                    className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-lime-500/20 to-yellow-500/20 text-lime-400 border border-lime-500/30'
-                        : 'text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-900'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
             </div>
 
             {/* Active Workspace Tab Content Area */}
@@ -1613,6 +1807,13 @@ export default function App() {
                 />
               )}
 
+              {workspaceTab === 'workers' && (
+                <WorkersManager
+                  project={selectedProject}
+                  onUpdateContractor={updateWorkspaceContractor}
+                />
+              )}
+
               {workspaceTab === 'orders' && (
                 <MaterialTracker
                   project={selectedProject}
@@ -1661,7 +1862,7 @@ export default function App() {
                   </div>
                   <div>
                     <h3 className="text-lg font-black text-white font-display">ตั้งค่าระบบคลาวด์ซิงก์ (Cloud Sync)</h3>
-                    <p className="text-xs text-zinc-400">ซิงก์ข้อมูลโครงการของคุณไปใช้บนเครื่องอื่นหรือเว็บบราวเซอร์อื่นได้ทันที</p>
+                    <p className="text-xs text-zinc-400">ซิงก์ข้อมูลโครงการของคุณไปใช้บนเครื่องอื่นหรือเว็บบราวเซอร์อื่นได้ทันทีแบบเรียลไทม์</p>
                   </div>
                 </div>
                 <button
@@ -1671,6 +1872,17 @@ export default function App() {
                 >
                   <span className="text-xl font-bold font-sans">✕</span>
                 </button>
+              </div>
+
+              {/* Cross Device Hint Box */}
+              <div className="bg-lime-950/20 border border-lime-500/30 rounded-xl p-3.5 space-y-1 text-xs">
+                <div className="font-bold text-lime-400 flex items-center gap-1.5">
+                  <Database className="w-4 h-4" />
+                  <span>💡 การเปิดใช้งานข้อมูลบนเครื่องอื่น / ต่างอุปกรณ์</span>
+                </div>
+                <p className="text-zinc-300 text-[11px] leading-relaxed">
+                  ระบบคลาวด์ถูกเปิดใช้งานอัตโนมัติ เพียงคุณเปิด URL ลิงก์แอปนี้บนเครื่องอื่นหรือบราวเซอร์อื่น ข้อมูลโครงการทั้งหมดจะถูกดึงมาแสดงผลทันทีโดยอัตโนมัติ หากต้องการอัปเดตด่วน สามารถกดปุ่ม <b className="text-lime-300">"ดึงข้อมูลลงเครื่อง"</b> ด้านล่างนี้ได้เลย
+                </p>
               </div>
 
               {/* Toggle Switch */}

@@ -8,6 +8,7 @@ export interface Contact {
   firstName: string;
   lastName: string;
   position: string;
+  department?: string;
   phone?: string;
   email?: string;
   lineId?: string;
@@ -16,7 +17,11 @@ export interface Contact {
 export interface Worker {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   position?: string;
+  phone?: string;
+  note?: string;
 }
 
 export interface PaymentMilestone {

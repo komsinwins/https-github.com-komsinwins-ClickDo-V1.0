@@ -60,29 +60,26 @@ export default function DiagramCanvas({ initialData, onSave, title }: DiagramCan
     }
   }, [initialData]);
 
-  // Drawing mouse handlers
-  const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Drawing mouse & touch position handlers
+  const getCanvasPos = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    // Account for potential canvas scaling
     return {
-      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((e.clientY - rect.top) / rect.height) * canvas.height,
+      x: ((clientX - rect.left) / rect.width) * canvas.width,
+      y: ((clientY - rect.top) / rect.height) * canvas.height,
     };
   };
 
-  const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawPos = (pos: { x: number; y: number }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const pos = getMousePos(e);
     setIsDrawing(true);
     setStartPos(pos);
 
-    // Save current image state for shapes (undo-like behavior during drag)
     setSnapshot(ctx.getImageData(0, 0, canvas.width, canvas.height));
 
     ctx.beginPath();
@@ -93,20 +90,17 @@ export default function DiagramCanvas({ initialData, onSave, title }: DiagramCan
     ctx.lineJoin = 'round';
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const drawPos = (currentPos: { x: number; y: number }) => {
     if (!isDrawing) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const currentPos = getMousePos(e);
-
     if (tool === 'pencil' || tool === 'eraser') {
       ctx.lineTo(currentPos.x, currentPos.y);
       ctx.stroke();
     } else if (snapshot) {
-      // For shapes, restore previous state first to avoid drawing trails
       ctx.putImageData(snapshot, 0, 0);
       ctx.beginPath();
       ctx.strokeStyle = color;
@@ -121,6 +115,28 @@ export default function DiagramCanvas({ initialData, onSave, title }: DiagramCan
         const height = currentPos.y - startPos.y;
         ctx.strokeRect(startPos.x, startPos.y, width, height);
       }
+    }
+  };
+
+  const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    startDrawPos(getCanvasPos(e.clientX, e.clientY));
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    drawPos(getCanvasPos(e.clientX, e.clientY));
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      startDrawPos(getCanvasPos(touch.clientX, touch.clientY));
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      drawPos(getCanvasPos(touch.clientX, touch.clientY));
     }
   };
 
@@ -323,8 +339,12 @@ export default function DiagramCanvas({ initialData, onSave, title }: DiagramCan
           onMouseMove={draw}
           onMouseUp={stopDraw}
           onMouseLeave={stopDraw}
-          className="cursor-crosshair max-w-full block"
-          style={{ width: '800px', height: '450px' }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={stopDraw}
+          onTouchCancel={stopDraw}
+          className="cursor-crosshair max-w-full block touch-none"
+          style={{ width: '100%', maxWidth: '800px', height: 'auto', aspectRatio: '800/450' }}
         />
         <div className="absolute bottom-2 left-2 bg-zinc-900/95 border border-zinc-800 text-[10px] text-zinc-400 px-2 py-1 rounded font-mono select-none">
           {tool === 'pencil' && 'โหมด: ดินสอ / วาดรูปอิสระ'}
