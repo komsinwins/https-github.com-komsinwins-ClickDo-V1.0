@@ -79,6 +79,7 @@ import {
   Upload,
   FileSpreadsheet,
   FileCheck,
+  Unplug,
   Menu,
   X
 } from 'lucide-react';
@@ -140,8 +141,8 @@ export default function App() {
   useEffect(() => {
     const initData = async () => {
       const storedCloudPref = localStorage.getItem('clickdo_cloud_enabled');
-      // Default to true so that opening on any other machine or browser auto-syncs from Cloud Firestore
-      const cloudPref = storedCloudPref === null ? true : storedCloudPref === 'true';
+      // Default to false so external database connection is cancelled / disabled by default
+      const cloudPref = storedCloudPref === 'true';
       setIsCloudEnabled(cloudPref);
 
       let loadedProjects: Project[] = [];
@@ -460,6 +461,22 @@ export default function App() {
     } else {
       setCloudStatus('disconnected');
     }
+  };
+
+  const handleDisconnectExternalDb = () => {
+    setIsCloudEnabled(false);
+    setCloudStatus('disconnected');
+    setCloudError(null);
+    localStorage.setItem('clickdo_cloud_enabled', 'false');
+    clearCustomFirebaseConfig();
+    setUseCustomFirebase(false);
+    setFbApiKey('');
+    setFbAuthDomain('');
+    setFbProjectId('');
+    setFbStorageBucket('');
+    setFbMessagingSenderId('');
+    setFbAppId('');
+    alert('ยกเลิกการเชื่อมต่อฐานข้อมูลภายนอกเรียบร้อยแล้ว ระบบปรับเปลี่ยนมาใช้งานฐานข้อมูลภายในเครื่อง (Local Offline Database) 100%');
   };
 
   const handleSaveCustomFirebase = async () => {
@@ -1874,36 +1891,63 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Cross Device Hint Box */}
-              <div className="bg-lime-950/20 border border-lime-500/30 rounded-xl p-3.5 space-y-1 text-xs">
-                <div className="font-bold text-lime-400 flex items-center gap-1.5">
+              {/* Connection Status Box */}
+              <div className={`border rounded-xl p-3.5 space-y-1 text-xs ${
+                isCloudEnabled && cloudStatus === 'connected'
+                  ? 'bg-lime-950/20 border-lime-500/30'
+                  : 'bg-zinc-900/60 border-zinc-800'
+              }`}>
+                <div className={`font-bold flex items-center gap-1.5 ${
+                  isCloudEnabled && cloudStatus === 'connected' ? 'text-lime-400' : 'text-zinc-300'
+                }`}>
                   <Database className="w-4 h-4" />
-                  <span>💡 การเปิดใช้งานข้อมูลบนเครื่องอื่น / ต่างอุปกรณ์</span>
+                  <span>
+                    {isCloudEnabled && cloudStatus === 'connected'
+                      ? '💡 สถานะการเชื่อมต่อ: คลาวด์เรียลไทม์ (Online Sync)'
+                      : '🔒 สถานะการเชื่อมต่อ: ฐานข้อมูลภายในเครื่อง (Local Offline Mode)'}
+                  </span>
                 </div>
                 <p className="text-zinc-300 text-[11px] leading-relaxed">
-                  ระบบคลาวด์ถูกเปิดใช้งานอัตโนมัติ เพียงคุณเปิด URL ลิงก์แอปนี้บนเครื่องอื่นหรือบราวเซอร์อื่น ข้อมูลโครงการทั้งหมดจะถูกดึงมาแสดงผลทันทีโดยอัตโนมัติ หากต้องการอัปเดตด่วน สามารถกดปุ่ม <b className="text-lime-300">"ดึงข้อมูลลงเครื่อง"</b> ด้านล่างนี้ได้เลย
+                  {isCloudEnabled && cloudStatus === 'connected'
+                    ? 'ข้อมูลจะถูกซิงก์โดยอัตโนมัติกับฐานข้อมูลภายนอก สามารถใช้งานร่วมกันข้ามเครื่องหรือข้ามเว็บบราวเซอร์ได้'
+                    : 'ขณะนี้ระบบใช้งานเฉพาะฐานข้อมูลภายในเครื่อง (IndexedDB/LocalStorage) ปลอดภัย 100% ไม่มีการส่งข้อมูลไปยังฐานข้อมูลภายนอกใดๆ'}
                 </p>
               </div>
 
-              {/* Toggle Switch */}
-              <div className="bg-zinc-900/40 border border-zinc-900 rounded-xl p-4 flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>เปิดใช้งานระบบคลาวด์ (Enable Cloud Sync)</span>
-                  </h4>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">เปิดบันทึกข้อมูลแบบเรียลไทม์ไปยังคลาวด์เซิร์ฟเวอร์</p>
+              {/* Action: Disconnect External Database */}
+              <div className="bg-zinc-900/40 border border-zinc-900 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-sm text-white flex items-center gap-2">
+                      <span>สถานะการเชื่อมต่อคลาวด์</span>
+                    </h4>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      {isCloudEnabled ? 'เปิดใช้งานการเชื่อมต่อฐานข้อมูลภายนอกอยู่' : 'ปิดการเชื่อมต่อฐานข้อมูลภายนอกแล้ว (Local Only)'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCloud(!isCloudEnabled)}
+                    className={`w-14 h-7.5 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
+                      isCloudEnabled ? 'bg-lime-500' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div className={`bg-black w-5.5 h-5.5 rounded-full shadow-md transform transition-transform duration-200 ${
+                      isCloudEnabled ? 'translate-x-7' : 'translate-x-0'
+                    }`} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleToggleCloud(!isCloudEnabled)}
-                  className={`w-14 h-7.5 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
-                    isCloudEnabled ? 'bg-lime-500' : 'bg-zinc-800'
-                  }`}
-                >
-                  <div className={`bg-black w-5.5 h-5.5 rounded-full shadow-md transform transition-transform duration-200 ${
-                    isCloudEnabled ? 'translate-x-7' : 'translate-x-0'
-                  }`} />
-                </button>
+
+                <div className="pt-2 border-t border-zinc-800/80">
+                  <button
+                    type="button"
+                    onClick={handleDisconnectExternalDb}
+                    className="w-full py-2.5 bg-red-950/30 hover:bg-red-900/40 border border-red-500/30 hover:border-red-500/60 rounded-xl text-xs font-bold text-red-300 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Unplug className="w-4 h-4 text-red-400" />
+                    <span>ยกเลิกการเชื่อมต่อฐานข้อมูลภายนอกทั้งหมด (Disconnect External DB)</span>
+                  </button>
+                </div>
               </div>
 
               {/* Status Section */}
