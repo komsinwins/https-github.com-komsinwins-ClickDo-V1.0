@@ -7,20 +7,6 @@ import React, { useState, useEffect } from 'react';
 import { Project, Contact, ContractorInfo, SOWItem, OrderItem, Diagram, ReportLog, ProjectDocument, Customer } from './types';
 import { INITIAL_PROJECTS, DEFAULT_POSITIONS, DEFAULT_SALESPEOPLE, DEFAULT_PROJECT_MANAGERS, DEFAULT_STATUSES, INITIAL_CUSTOMERS } from './initialData';
 import { localDb } from './dbLocal';
-import { 
-  getFirebaseInstance, 
-  getFirebaseConfig, 
-  saveCustomFirebaseConfig, 
-  clearCustomFirebaseConfig, 
-  fetchProjectsFromFirebase, 
-  fetchCustomersFromFirebase, 
-  saveProjectToFirebase, 
-  saveAllProjectsToFirebase, 
-  saveCustomerToFirebase, 
-  saveAllCustomersToFirebase, 
-  deleteProjectFromFirebase, 
-  deleteCustomerFromFirebase 
-} from './firebase';
 
 
 
@@ -85,6 +71,34 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  const isCloudEnabled = false;
+  const cloudStatus: string = 'disconnected';
+  const cloudError = null;
+  const isCloudModalOpen = false;
+  const setIsCloudModalOpen = (open: boolean) => {};
+  const setCloudStatus = (s: string) => {};
+  const setCloudError = (e: any) => {};
+  const setIsCloudEnabled = (e: boolean) => {};
+  const clearCustomFirebaseConfig = () => {};
+  const setUseCustomFirebase = (b: boolean) => {};
+  const setFbApiKey = (s: string) => {};
+  const setFbAuthDomain = (s: string) => {};
+  const setFbProjectId = (s: string) => {};
+  const setFbStorageBucket = (s: string) => {};
+  const setFbMessagingSenderId = (s: string) => {};
+  const setFbAppId = (s: string) => {};
+  const useCustomFirebase = false;
+  const fbApiKey = '';
+  const fbProjectId = '';
+  const fbAuthDomain = '';
+  const fbStorageBucket = '';
+  const fbMessagingSenderId = '';
+  const fbAppId = '';
+  const saveCustomFirebaseConfig = (c: any) => {};
+  const cloudProjects: any = [];
+  const cloudCustomers: any = [];
+  const getFirebaseInstance = () => null;
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -92,21 +106,6 @@ export default function App() {
   const [salesPeople, setSalesPeople] = useState<string[]>([]);
   const [projectManagers, setProjectManagers] = useState<string[]>([]);
   const [projectStatuses, setProjectStatuses] = useState<string[]>([]);
-
-  // Cloud Sync States
-  const [isCloudEnabled, setIsCloudEnabled] = useState<boolean>(false);
-  const [cloudStatus, setCloudStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
-  const [cloudError, setCloudError] = useState<string | null>(null);
-  const [isCloudModalOpen, setIsCloudModalOpen] = useState<boolean>(false);
-
-  // Custom Firebase fields state
-  const [useCustomFirebase, setUseCustomFirebase] = useState<boolean>(false);
-  const [fbApiKey, setFbApiKey] = useState('');
-  const [fbAuthDomain, setFbAuthDomain] = useState('');
-  const [fbProjectId, setFbProjectId] = useState('');
-  const [fbStorageBucket, setFbStorageBucket] = useState('');
-  const [fbMessagingSenderId, setFbMessagingSenderId] = useState('');
-  const [fbAppId, setFbAppId] = useState('');
 
   // View state: 'dashboard' | 'create_project' | 'edit_project' | 'project_workspace' | 'customers'
   const [view, setView] = useState<'dashboard' | 'create_project' | 'edit_project' | 'project_workspace' | 'customers'>('dashboard');
@@ -122,81 +121,15 @@ export default function App() {
   const [canvasTitle, setCanvasTitle] = useState('');
   const [canvasType, setCanvasType] = useState<'Placement' | 'Connection' | 'Other'>('Placement');
 
-  // Load custom Firebase config if available
-  useEffect(() => {
-    const config = getFirebaseConfig();
-    const storedCustom = localStorage.getItem('clickdo_firebase_custom_config');
-    if (storedCustom && config) {
-      setUseCustomFirebase(true);
-      setFbApiKey(config.apiKey || '');
-      setFbAuthDomain(config.authDomain || '');
-      setFbProjectId(config.projectId || '');
-      setFbStorageBucket(config.storageBucket || '');
-      setFbMessagingSenderId(config.messagingSenderId || '');
-      setFbAppId(config.appId || '');
-    }
-  }, []);
-
+  
   // Load state on mount and sync changes
   useEffect(() => {
     const initData = async () => {
-      const storedCloudPref = localStorage.getItem('clickdo_cloud_enabled');
-      // Default to false so external database connection is cancelled / disabled by default
-      const cloudPref = storedCloudPref === 'true';
-      setIsCloudEnabled(cloudPref);
-
       let loadedProjects: Project[] = [];
       let loadedCustomers: Customer[] = [];
 
-      if (cloudPref) {
-        setCloudStatus('connecting');
-        try {
-          const instance = getFirebaseInstance();
-          if (instance) {
-            loadedProjects = await fetchProjectsFromFirebase();
-            loadedCustomers = await fetchCustomersFromFirebase();
-            setCloudStatus('connected');
-            setCloudError(null);
-
-            // If Firebase returned data, cache to localDb
-            if (loadedProjects.length > 0) {
-              await localDb.set('clickdo_projects', loadedProjects);
-            } else {
-              // If Firebase is empty, check if local storage/IndexedDB has existing projects
-              const localCached = await localDb.get<Project[]>('clickdo_projects') || [];
-              if (localCached.length > 0) {
-                loadedProjects = localCached;
-                // Upload local projects to Cloud so all devices can access them
-                await saveAllProjectsToFirebase(loadedProjects).catch(console.error);
-              }
-            }
-
-            if (loadedCustomers.length > 0) {
-              await localDb.set('clickdo_customers', loadedCustomers);
-            } else {
-              const localCustCached = await localDb.get<Customer[]>('clickdo_customers') || [];
-              if (localCustCached.length > 0) {
-                loadedCustomers = localCustCached;
-                await saveAllCustomersToFirebase(loadedCustomers).catch(console.error);
-              }
-            }
-          } else {
-            throw new Error('ไม่สามารถเริ่มต้นระบบคลาวด์ได้');
-          }
-        } catch (err: any) {
-          console.error('Failed to sync with cloud on startup, falling back to local database:', err);
-          setCloudStatus('error');
-          setCloudError(err.message || 'Connection error');
-          // Fall back to local
-          loadedProjects = await localDb.get<Project[]>('clickdo_projects') || [];
-          loadedCustomers = await localDb.get<Customer[]>('clickdo_customers') || [];
-        }
-      } else {
-        setCloudStatus('disconnected');
-        // Load local
-        loadedProjects = await localDb.get<Project[]>('clickdo_projects') || [];
-        loadedCustomers = await localDb.get<Customer[]>('clickdo_customers') || [];
-      }
+      loadedProjects = await localDb.get<Project[]>('clickdo_projects') || [];
+      loadedCustomers = await localDb.get<Customer[]>('clickdo_customers') || [];
 
       // If still empty, fall back to INITIAL_PROJECTS
       if (loadedProjects.length === 0) {
@@ -211,9 +144,7 @@ export default function App() {
           loadedProjects = INITIAL_PROJECTS;
         }
         await localDb.set('clickdo_projects', loadedProjects);
-        if (cloudPref) {
-          await saveAllProjectsToFirebase(loadedProjects).catch(console.error);
-        }
+        
       }
       setProjects(loadedProjects);
 
@@ -298,9 +229,7 @@ export default function App() {
           loadedCustomers = INITIAL_CUSTOMERS;
         }
         await localDb.set('clickdo_customers', loadedCustomers);
-        if (cloudPref && cloudStatus === 'connected') {
-          await saveAllCustomersToFirebase(loadedCustomers).catch(console.error);
-        }
+        
       }
       setCustomers(loadedCustomers);
     };
@@ -316,7 +245,7 @@ export default function App() {
     // Auto-sync projects list
     if (isCloudEnabled) {
       try {
-        await saveAllProjectsToFirebase(updatedProjects);
+
         setCloudStatus('connected');
         setCloudError(null);
       } catch (err: any) {
@@ -343,7 +272,7 @@ export default function App() {
     
     if (isCloudEnabled) {
       try {
-        await saveCustomerToFirebase(newCustomer);
+
         setCloudStatus('connected');
       } catch (err: any) {
         console.error('Failed to sync new customer to Cloud:', err);
@@ -358,7 +287,7 @@ export default function App() {
     
     if (isCloudEnabled) {
       try {
-        await saveCustomerToFirebase(updatedCustomer);
+
         setCloudStatus('connected');
       } catch (err: any) {
         console.error('Failed to sync updated customer to Cloud:', err);
@@ -373,7 +302,7 @@ export default function App() {
     
     if (isCloudEnabled) {
       try {
-        await deleteCustomerFromFirebase(id);
+
         setCloudStatus('connected');
       } catch (err: any) {
         console.error('Failed to sync deleted customer from Cloud:', err);
@@ -385,8 +314,8 @@ export default function App() {
   const handleUploadToCloud = async () => {
     setCloudStatus('connecting');
     try {
-      await saveAllProjectsToFirebase(projects);
-      await saveAllCustomersToFirebase(customers);
+
+
       setCloudStatus('connected');
       alert('ส่งออกข้อมูลทั้งหมดในเครื่องนี้ขึ้นสู่ระบบคลาวด์เรียบร้อยแล้ว!');
     } catch (err: any) {
@@ -403,8 +332,8 @@ export default function App() {
     }
     setCloudStatus('connecting');
     try {
-      const cloudProjects = await fetchProjectsFromFirebase();
-      const cloudCustomers = await fetchCustomersFromFirebase();
+
+
       
       setProjects(cloudProjects);
       await localDb.set('clickdo_projects', cloudProjects);
@@ -434,13 +363,13 @@ export default function App() {
         if (!instance) throw new Error('ไม่สามารถเชื่อมต่อ Firebase ได้');
         
         // Test connection by fetching
-        const cloudProjects = await fetchProjectsFromFirebase();
-        const cloudCustomers = await fetchCustomersFromFirebase();
+
+
         
         if (cloudProjects.length === 0 && projects.length > 0) {
           if (confirm('ตรวจพบว่าระบบคลาวด์ยังว่างอยู่ แต่คุณมีข้อมูลในเครื่องนี้ คุณต้องการ "อัปโหลดข้อมูลจากเครื่องนี้ขึ้นระบบคลาวด์" เลยหรือไม่? (แนะนำสำหรับการใช้งานครั้งแรก)')) {
-            await saveAllProjectsToFirebase(projects);
-            await saveAllCustomersToFirebase(customers);
+
+
           }
         } else if (cloudProjects.length > 0) {
           if (confirm('พบข้อมูลโครงการอยู่บนระบบคลาวด์ คุณต้องการดาวน์โหลดและเขียนทับข้อมูลบนเครื่องปัจจุบันหรือไม่? (ตอบ ตกลง เพื่อใช้ข้อมูลร่วมกันข้ามเครื่อง)')) {
@@ -623,10 +552,10 @@ export default function App() {
             try {
               setCloudStatus('connecting');
               if (importedProjects && Array.isArray(importedProjects)) {
-                await saveAllProjectsToFirebase(importedProjects);
+
               }
               if (importedCustomers && Array.isArray(importedCustomers)) {
-                await saveAllCustomersToFirebase(importedCustomers);
+
               }
               setCloudStatus('connected');
               alert('อัปโหลดข้อมูลขึ้นสู่ระบบคลาวด์เรียบร้อยแล้ว!');
@@ -1315,8 +1244,6 @@ export default function App() {
             selectedProject={selectedProject}
             onSelectProject={handleSelectProject}
             onCreateProject={() => setView('create_project')}
-            onConfigureFirebase={() => setIsCloudModalOpen(true)}
-            firebaseStatus={cloudStatus}
           />
         )}
 

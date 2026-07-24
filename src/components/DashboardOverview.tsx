@@ -13,8 +13,6 @@ interface DashboardOverviewProps {
   selectedProject: Project | null;
   onSelectProject: (project: Project) => void;
   onCreateProject: () => void;
-  onConfigureFirebase?: () => void;
-  firebaseStatus?: 'disconnected' | 'connecting' | 'connected' | 'error';
 }
 
 export default function DashboardOverview({
@@ -22,8 +20,6 @@ export default function DashboardOverview({
   selectedProject,
   onSelectProject,
   onCreateProject,
-  onConfigureFirebase,
-  firebaseStatus,
 }: DashboardOverviewProps) {
   // Current time is Friday, July 10, 2026.
   const currentDate = new Date('2026-07-10');
@@ -366,30 +362,7 @@ export default function DashboardOverview({
           className="absolute right-0 top-0 h-full w-2/3 object-cover opacity-60 mix-blend-screen select-none"
         />
 
-        {/* Real-time Cloud Sync Badge (Universal Access) */}
-        <div className="absolute top-4 right-4 z-30 flex items-center gap-2.5 bg-zinc-950/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-zinc-800 shadow-lg no-print">
-          <div className={`w-2 h-2 rounded-full ${
-            firebaseStatus === 'connected'
-              ? 'bg-lime-500 animate-pulse'
-              : firebaseStatus === 'connecting'
-              ? 'bg-yellow-500 animate-bounce'
-              : firebaseStatus === 'error'
-              ? 'bg-red-500 animate-pulse'
-              : 'bg-zinc-600'
-          }`} />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-300">
-            คลาวด์ซิงก์: {firebaseStatus === 'connected' ? 'เชื่อมต่อแล้ว' : firebaseStatus === 'connecting' ? 'กำลังซิงก์...' : firebaseStatus === 'error' ? 'การซิงก์ขัดข้อง' : 'บันทึกในเครื่อง'}
-          </span>
-          {onConfigureFirebase && (
-            <button
-              type="button"
-              onClick={onConfigureFirebase}
-              className="text-[9px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-lime-400 font-bold px-2 py-0.5 rounded transition-all cursor-pointer"
-            >
-              ตั้งค่าคลาวด์
-            </button>
-          )}
-        </div>
+
 
         {/* Hero content */}
         <div className="relative z-20 p-8 md:p-12 flex flex-col justify-between min-h-[220px]">
@@ -1120,8 +1093,14 @@ export default function DashboardOverview({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
             {filteredProjects.map((p) => {
               const completedSow = p.scopesOfWork.filter((s) => s.status === 'Completed').length;
+              const inProgressSow = p.scopesOfWork.filter((s) => s.status === 'In Progress').length;
+              const notStartedSow = p.scopesOfWork.filter((s) => s.status === 'Not Started').length;
               const totalSow = p.scopesOfWork.length;
-              const progressPct = totalSow > 0 ? Math.round((completedSow / totalSow) * 100) : 0;
+              
+              const progressPct = totalSow > 0 ? Math.round(((completedSow * 100) + (inProgressSow * 50)) / totalSow) : 0;
+              const completedPct = totalSow > 0 ? (completedSow / totalSow) * 100 : 0;
+              const inProgressPct = totalSow > 0 ? (inProgressSow / totalSow) * 100 : 0;
+              
               const daysLeft = getRemainingDays(p.endDate);
               const isNearDeadline = p.status === 'Active' && daysLeft <= 10;
 
@@ -1183,17 +1162,34 @@ export default function DashboardOverview({
                   {/* Progress bar */}
                   <div className="mt-5 pt-4 border-t border-slate-100">
                     <div className="flex justify-between items-center text-xs mb-1.5">
-                      <span className="text-slate-500 font-bold">ความคืบหน้าแผนงาน</span>
-                      <span className="text-lime-600 font-mono font-black">{progressPct}%</span>
+                      <span className="text-slate-500 font-bold">สถานะ SOW ({totalSow} รายการ)</span>
+                      <span className="text-slate-700 font-mono font-black">{progressPct}%</span>
                     </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-lime-500 to-emerald-500 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${progressPct}%` }}
-                      />
+                    {/* Segmented Progress Bar */}
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex">
+                      {completedPct > 0 && (
+                        <div
+                          className="bg-emerald-500 h-full transition-all duration-500"
+                          style={{ width: `${completedPct}%` }}
+                          title={`สำเร็จ ${completedSow} งาน`}
+                        />
+                      )}
+                      {inProgressPct > 0 && (
+                        <div
+                          className="bg-amber-400 h-full transition-all duration-500"
+                          style={{ width: `${inProgressPct}%` }}
+                          title={`กำลังดำเนินการ ${inProgressSow} งาน`}
+                        />
+                      )}
                     </div>
-                    <div className="mt-2.5 flex justify-between text-[11px] text-slate-500">
-                      <span>Scope สำเร็จ: <b className="text-slate-800">{completedSow}/{totalSow}</b> งาน</span>
+                    
+                    {/* Legend */}
+                    <div className="mt-2.5 flex justify-between text-[10px] text-slate-500">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> {completedSow}</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400"></span> {inProgressSow}</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-200"></span> {notStartedSow}</span>
+                      </div>
                       <span>PM: <b className="text-slate-800">{p.projectManager || '-'}</b></span>
                     </div>
                   </div>
@@ -1206,8 +1202,14 @@ export default function DashboardOverview({
           <div className="space-y-3 animate-fade-in">
             {filteredProjects.map((p) => {
               const completedSow = p.scopesOfWork.filter((s) => s.status === 'Completed').length;
+              const inProgressSow = p.scopesOfWork.filter((s) => s.status === 'In Progress').length;
+              const notStartedSow = p.scopesOfWork.filter((s) => s.status === 'Not Started').length;
               const totalSow = p.scopesOfWork.length;
-              const progressPct = totalSow > 0 ? Math.round((completedSow / totalSow) * 100) : 0;
+              
+              const progressPct = totalSow > 0 ? Math.round(((completedSow * 100) + (inProgressSow * 50)) / totalSow) : 0;
+              const completedPct = totalSow > 0 ? (completedSow / totalSow) * 100 : 0;
+              const inProgressPct = totalSow > 0 ? (inProgressSow / totalSow) * 100 : 0;
+              
               const daysLeft = getRemainingDays(p.endDate);
               const isNearDeadline = p.status === 'Active' && daysLeft <= 10;
 
@@ -1266,17 +1268,23 @@ export default function DashboardOverview({
                   {/* Right Column: Progress bar & PM info */}
                   <div className="md:w-72 shrink-0 flex flex-col justify-center space-y-2 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-4">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-500 font-bold">ความสำเร็จ: <b className="text-slate-800 font-mono">{progressPct}%</b></span>
+                      <span className="text-slate-500 font-bold">สถานะ SOW: <b className="text-slate-800 font-mono">{progressPct}%</b></span>
                       <span className="text-slate-400">PM: <b className="text-slate-700">{p.projectManager || '-'}</b></span>
                     </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-lime-500 to-emerald-500 h-full rounded-full"
-                        style={{ width: `${progressPct}%` }}
-                      />
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex">
+                      {completedPct > 0 && (
+                        <div className="bg-emerald-500 h-full" style={{ width: `${completedPct}%` }} title={`สำเร็จ ${completedSow} งาน`} />
+                      )}
+                      {inProgressPct > 0 && (
+                        <div className="bg-amber-400 h-full" style={{ width: `${inProgressPct}%` }} title={`กำลังดำเนินการ ${inProgressSow} งาน`} />
+                      )}
                     </div>
                     <div className="flex justify-between text-[10px] text-slate-500">
-                      <span>งานเสร็จ: {completedSow}/{totalSow} รายการ</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>{completedSow}</span>
+                        <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>{inProgressSow}</span>
+                        <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-200"></span>{notStartedSow}</span>
+                      </div>
                       <span>ผู้ว่าจ้าง: {p.ownerName || '-'}</span>
                     </div>
                   </div>
@@ -1304,8 +1312,14 @@ export default function DashboardOverview({
               <tbody className="divide-y divide-slate-100 text-xs font-medium">
                 {filteredProjects.map((p) => {
                   const completedSow = p.scopesOfWork.filter((s) => s.status === 'Completed').length;
+                  const inProgressSow = p.scopesOfWork.filter((s) => s.status === 'In Progress').length;
+                  const notStartedSow = p.scopesOfWork.filter((s) => s.status === 'Not Started').length;
                   const totalSow = p.scopesOfWork.length;
-                  const progressPct = totalSow > 0 ? Math.round((completedSow / totalSow) * 100) : 0;
+                  
+                  const progressPct = totalSow > 0 ? Math.round(((completedSow * 100) + (inProgressSow * 50)) / totalSow) : 0;
+                  const completedPct = totalSow > 0 ? (completedSow / totalSow) * 100 : 0;
+                  const inProgressPct = totalSow > 0 ? (inProgressSow / totalSow) * 100 : 0;
+                  
                   const daysLeft = getRemainingDays(p.endDate);
 
                   return (
@@ -1358,11 +1372,19 @@ export default function DashboardOverview({
                         {p.ownerName || '-'}
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2 justify-center">
-                          <div className="w-16 bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-lime-500 h-full rounded-full" style={{ width: `${progressPct}%` }} />
+                        <div className="flex items-center gap-2 justify-center group/progress relative">
+                          <div className="w-16 bg-slate-100 h-1.5 rounded-full overflow-hidden flex">
+                            {completedPct > 0 && <div className="bg-emerald-500 h-full" style={{ width: `${completedPct}%` }} />}
+                            {inProgressPct > 0 && <div className="bg-amber-400 h-full" style={{ width: `${inProgressPct}%` }} />}
                           </div>
                           <span className="font-mono font-bold text-slate-900 w-8 text-right">{progressPct}%</span>
+                          
+                          {/* Tooltip for details */}
+                          <div className="absolute hidden group-hover/progress:flex flex-col gap-1 bottom-full mb-2 bg-slate-900 text-white text-[10px] p-2 rounded shadow-lg whitespace-nowrap z-10">
+                            <div className="flex items-center justify-between gap-4"><span>สำเร็จ:</span> <span className="font-mono text-emerald-400">{completedSow}</span></div>
+                            <div className="flex items-center justify-between gap-4"><span>กำลังดำเนินการ:</span> <span className="font-mono text-amber-400">{inProgressSow}</span></div>
+                            <div className="flex items-center justify-between gap-4"><span>ยังไม่เริ่ม:</span> <span className="font-mono text-slate-400">{notStartedSow}</span></div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-right text-slate-500">
